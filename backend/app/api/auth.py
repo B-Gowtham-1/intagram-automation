@@ -11,37 +11,59 @@ class LoginRequest(BaseModel):
     password: str
 
 
+AUTH_USERS_STORE = {
+    "user1": {
+        "id": "user-1",
+        "username": "gowtham",
+        "password": "1317",
+        "name": "GOWTHAM",
+        "mascot": "pig",
+    },
+    "user2": {
+        "id": "user-2",
+        "username": "manu",
+        "password": "1317",
+        "name": "MANU",
+        "mascot": "dog",
+    },
+}
+
+
 @router.post("/login")
 def login(payload: LoginRequest):
-    """Authenticate user against environment variables from .env."""
+    """Authenticate user against embedded credentials in code."""
     username = payload.username.strip().lower()
     password = payload.password.strip()
 
-    # User 1 check from .env
-    u1_user = settings.USER1_USERNAME.strip().lower()
-    u1_pass = settings.USER1_PASSWORD.strip()
-    if u1_user and username == u1_user and password == u1_pass:
+    # User 1 check
+    u1_user = (settings.USER1_USERNAME or AUTH_USERS_STORE["user1"]["username"]).strip().lower()
+    u1_pass = (settings.USER1_PASSWORD or AUTH_USERS_STORE["user1"]["password"]).strip()
+    u1_name = (settings.USER1_NAME or AUTH_USERS_STORE["user1"]["name"]).strip()
+    u1_mascot = (settings.USER1_MASCOT or AUTH_USERS_STORE["user1"]["mascot"]).strip().lower()
+    if username == u1_user and password == u1_pass:
         return {
             "success": True,
             "user": {
                 "id": "user-1",
-                "username": settings.USER1_USERNAME.strip(),
-                "name": settings.USER1_NAME.strip(),
-                "mascot": settings.USER1_MASCOT.strip().lower(),
+                "username": u1_user,
+                "name": u1_name,
+                "mascot": u1_mascot,
             }
         }
 
-    # User 2 check from .env
-    u2_user = settings.USER2_USERNAME.strip().lower()
-    u2_pass = settings.USER2_PASSWORD.strip()
-    if u2_user and username == u2_user and password == u2_pass:
+    # User 2 check
+    u2_user = (settings.USER2_USERNAME or AUTH_USERS_STORE["user2"]["username"]).strip().lower()
+    u2_pass = (settings.USER2_PASSWORD or AUTH_USERS_STORE["user2"]["password"]).strip()
+    u2_name = (settings.USER2_NAME or AUTH_USERS_STORE["user2"]["name"]).strip()
+    u2_mascot = (settings.USER2_MASCOT or AUTH_USERS_STORE["user2"]["mascot"]).strip().lower()
+    if username == u2_user and password == u2_pass:
         return {
             "success": True,
             "user": {
                 "id": "user-2",
-                "username": settings.USER2_USERNAME.strip(),
-                "name": settings.USER2_NAME.strip(),
-                "mascot": settings.USER2_MASCOT.strip().lower(),
+                "username": u2_user,
+                "name": u2_name,
+                "mascot": u2_mascot,
             }
         }
 

@@ -17,9 +17,9 @@ export const InteractiveMascot: React.FC<InteractiveMascotProps> = ({
 }) => {
   const normalized = username.trim().toLowerCase();
 
-  // Determine active mascot dynamically from environment configuration
+  // Determine active mascot dynamically from embedded configuration
   const mascotType: 'pig' | 'dog' = useMemo(() => {
-    const user2Key = (import.meta.env.VITE_USER2_USERNAME || '').toLowerCase();
+    const user2Key = (import.meta.env.VITE_USER2_USERNAME || 'manu').toLowerCase();
     const user2Mascot = (import.meta.env.VITE_USER2_MASCOT || 'dog').toLowerCase() === 'pig' ? 'pig' : 'dog';
     const user1Mascot = (import.meta.env.VITE_USER1_MASCOT || 'pig').toLowerCase() === 'dog' ? 'dog' : 'pig';
 

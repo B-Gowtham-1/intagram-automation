@@ -1,6 +1,8 @@
 import logging
+from pathlib import Path
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from backend.app.config.settings import get_settings
 from backend.app.api.health import router as health_router
@@ -56,13 +58,18 @@ app.include_router(accounts_router)
 app.include_router(auth_router)
 
 
-@app.get("/")
-def root():
-    return {
-        "app": "Instagram Carousel Automation Agent",
-        "docs": "/docs",
-        "health": "/api/health"
-    }
+# Mount built frontend if dist exists (enables all-in-one deployment on Render)
+dist_dir = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"
+if dist_dir.exists():
+    app.mount("/", StaticFiles(directory=str(dist_dir), html=True), name="frontend")
+else:
+    @app.get("/")
+    def root():
+        return {
+            "app": "Instagram Carousel Automation Agent",
+            "docs": "/docs",
+            "health": "/api/health"
+        }
 
 
 if __name__ == "__main__":

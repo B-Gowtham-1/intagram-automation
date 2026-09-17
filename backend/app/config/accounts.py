@@ -19,19 +19,26 @@ def _clean_url(url: str | None) -> Optional[str]:
     return cleaned if cleaned else None
 
 
+ACCOUNT_WEBHOOK_DEFAULTS = {
+    "account_1": "https://hook.eu1.make.com/v7bjry5eb52oo845g7v3l2vy1iijeoqw",  # nature.art
+    "account_2": "https://hook.eu1.make.com/mno7p6gaegf9yvqrakh00fu1r7ab8d3g",  # frames of nature
+    "account_3": "https://hook.eu1.make.com/7lytlgeob24z2l2ws53b56wphjpifj9v",  # Frames of Movies
+}
+
+
 def get_configured_accounts() -> List[AccountConfig]:
     """
-    Returns the list of 3 hardcoded Instagram accounts:
+    Returns the list of 3 Instagram accounts with embedded webhook URLs:
     1. nature.art
     2. frames of nature
     3. frames of movies
     """
     settings = get_settings()
 
-    # Read webhook URLs with fallback to MAKE_API_URL
-    url_1 = getattr(settings, "MAKE_API_URL_ACCOUNT_1", "") or settings.MAKE_API_URL
-    url_2 = getattr(settings, "MAKE_API_URL_ACCOUNT_2", "") or settings.MAKE_API_URL
-    url_3 = getattr(settings, "MAKE_API_URL_ACCOUNT_3", "") or settings.MAKE_API_URL
+    # Read webhook URLs with fallback to embedded defaults
+    url_1 = getattr(settings, "MAKE_API_URL_ACCOUNT_1", "") or ACCOUNT_WEBHOOK_DEFAULTS["account_1"]
+    url_2 = getattr(settings, "MAKE_API_URL_ACCOUNT_2", "") or ACCOUNT_WEBHOOK_DEFAULTS["account_2"]
+    url_3 = getattr(settings, "MAKE_API_URL_ACCOUNT_3", "") or ACCOUNT_WEBHOOK_DEFAULTS["account_3"]
 
     return [
         AccountConfig(

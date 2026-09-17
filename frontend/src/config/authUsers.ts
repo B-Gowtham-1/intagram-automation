@@ -1,5 +1,5 @@
-// Environment-driven Authentication Configuration
-// All user credentials, names, and mascots are loaded dynamically from .env
+// Authentication Configuration
+// User credentials, names, and mascots are embedded directly into the codebase.
 
 export interface AuthUser {
   id: string;
@@ -8,6 +8,25 @@ export interface AuthUser {
   mascotType: 'pig' | 'dog';
   role?: string;
 }
+
+export const EMBEDDED_USERS = {
+  user1: {
+    id: 'user-1',
+    username: 'gowtham',
+    pass: '1317',
+    name: 'GOWTHAM',
+    mascot: 'pig' as const,
+    role: 'SYSTEM_ADMINISTRATOR',
+  },
+  user2: {
+    id: 'user-2',
+    username: 'manu',
+    pass: '1317',
+    name: 'MANU',
+    mascot: 'dog' as const,
+    role: 'OPERATIONS_DIRECTOR',
+  },
+};
 
 const AUTH_STORAGE_KEY = 'zenitsu_auth_session';
 
@@ -38,9 +57,9 @@ export function clearSession(): void {
 }
 
 /**
- * Verify user credentials dynamically via Backend API (/api/auth/login)
- * with a fallback to Vite environment variables (.env).
- * NO credentials are hardcoded in the codebase.
+ * Verify user credentials directly via in-code embedded authentication,
+ * with optional backend validation when available.
+ * Does not depend on .env credentials.
  */
 export async function verifyCredentials(username: string, pass: string): Promise<AuthUser | null> {
   const cleanUser = username.trim().toLowerCase();
@@ -48,9 +67,10 @@ export async function verifyCredentials(username: string, pass: string): Promise
 
   if (!cleanUser || !cleanPass) return null;
 
-  // 1. Primary: Server-side validation via FastAPI reading directly from root .env
+  // 1. Try Server-side validation via FastAPI
   try {
-    const response = await fetch('/api/auth/login', {
+    const apiBase = (import.meta.env.VITE_API_URL ? String(import.meta.env.VITE_API_URL).replace(/\/+$/, '') : '') + '/api';
+    const response = await fetch(`${apiBase}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: cleanUser, password: cleanPass }),
@@ -69,37 +89,37 @@ export async function verifyCredentials(username: string, pass: string): Promise
       }
     }
   } catch {
-    // Backend offline or unreachable, proceed to client env fallback
+    // Backend offline or unreachable, proceed to embedded code verification
   }
 
-  // 2. Client Env Fallback (reads VITE_* injected by Vite from .env)
-  const u1User = (import.meta.env.VITE_USER1_USERNAME || '').trim().toLowerCase();
-  const u1Pass = (import.meta.env.VITE_USER1_PASSWORD || '').trim();
-  const u1Name = import.meta.env.VITE_USER1_NAME || 'USER 1';
-  const u1Mascot = (import.meta.env.VITE_USER1_MASCOT || 'pig').toLowerCase() === 'dog' ? 'dog' : 'pig';
+  // 2. Embedded In-Code Authentication (works without .env)
+  const u1User = (import.meta.env.VITE_USER1_USERNAME || EMBEDDED_USERS.user1.username).trim().toLowerCase();
+  const u1Pass = (import.meta.env.VITE_USER1_PASSWORD || EMBEDDED_USERS.user1.pass).trim();
+  const u1Name = import.meta.env.VITE_USER1_NAME || EMBEDDED_USERS.user1.name;
+  const u1Mascot = ((import.meta.env.VITE_USER1_MASCOT || EMBEDDED_USERS.user1.mascot).toLowerCase() === 'dog' ? 'dog' : 'pig') as 'pig' | 'dog';
 
-  const u2User = (import.meta.env.VITE_USER2_USERNAME || '').trim().toLowerCase();
-  const u2Pass = (import.meta.env.VITE_USER2_PASSWORD || '').trim();
-  const u2Name = import.meta.env.VITE_USER2_NAME || 'USER 2';
-  const u2Mascot = (import.meta.env.VITE_USER2_MASCOT || 'dog').toLowerCase() === 'dog' ? 'dog' : 'pig';
+  const u2User = (import.meta.env.VITE_USER2_USERNAME || EMBEDDED_USERS.user2.username).trim().toLowerCase();
+  const u2Pass = (import.meta.env.VITE_USER2_PASSWORD || EMBEDDED_USERS.user2.pass).trim();
+  const u2Name = import.meta.env.VITE_USER2_NAME || EMBEDDED_USERS.user2.name;
+  const u2Mascot = ((import.meta.env.VITE_USER2_MASCOT || EMBEDDED_USERS.user2.mascot).toLowerCase() === 'pig' ? 'pig' : 'dog') as 'pig' | 'dog';
 
-  if (u1User && cleanUser === u1User && cleanPass === u1Pass) {
+  if (cleanUser === u1User && cleanPass === u1Pass) {
     return {
-      id: 'user-1',
+      id: EMBEDDED_USERS.user1.id,
       username: u1User,
       displayName: u1Name,
       mascotType: u1Mascot,
-      role: 'SYSTEM_ADMINISTRATOR',
+      role: EMBEDDED_USERS.user1.role,
     };
   }
 
-  if (u2User && cleanUser === u2User && cleanPass === u2Pass) {
+  if (cleanUser === u2User && cleanPass === u2Pass) {
     return {
-      id: 'user-2',
+      id: EMBEDDED_USERS.user2.id,
       username: u2User,
       displayName: u2Name,
       mascotType: u2Mascot,
-      role: 'OPERATIONS_DIRECTOR',
+      role: EMBEDDED_USERS.user2.role,
     };
   }
 

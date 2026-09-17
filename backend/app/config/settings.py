@@ -46,12 +46,13 @@ class Settings(BaseSettings):
     R2_PUBLIC_BASE_URL: str = ""
 
     # Make.com Scenario (Phase G)
-    MAKE_API_URL: str = ""
+    MAKE_API_URL: str = "https://hook.eu1.make.com/v7bjry5eb52oo845g7v3l2vy1iijeoqw"
     MAKE_API_TOKEN: str = ""
     MAKE_SCENARIO_ID: str = ""
-    MAKE_API_URL_ACCOUNT_1: str = ""
-    MAKE_API_URL_ACCOUNT_2: str = ""
-    MAKE_API_URL_ACCOUNT_3: str = ""
+    # Account overrides (embedded in code)
+    MAKE_API_URL_ACCOUNT_1: str = "https://hook.eu1.make.com/v7bjry5eb52oo845g7v3l2vy1iijeoqw"  # nature.art
+    MAKE_API_URL_ACCOUNT_2: str = "https://hook.eu1.make.com/mno7p6gaegf9yvqrakh00fu1r7ab8d3g"  # frames of nature
+    MAKE_API_URL_ACCOUNT_3: str = "https://hook.eu1.make.com/7lytlgeob24z2l2ws53b56wphjpifj9v"  # Frames of Movies
 
     # Image Processing Configuration (Phase D)
     TARGET_WIDTH: int = 1080
@@ -59,14 +60,14 @@ class Settings(BaseSettings):
     MAX_IMAGES_PER_CAROUSEL: int = 10
     MAX_IMAGE_SIZE_MB: int = 20
 
-    # User Authentication (loaded from .env)
-    USER1_USERNAME: str = ""
-    USER1_PASSWORD: str = ""
+    # User Authentication (embedded in code)
+    USER1_USERNAME: str = "gowtham"
+    USER1_PASSWORD: str = "1317"
     USER1_NAME: str = "GOWTHAM"
     USER1_MASCOT: str = "pig"
 
-    USER2_USERNAME: str = ""
-    USER2_PASSWORD: str = ""
+    USER2_USERNAME: str = "manu"
+    USER2_PASSWORD: str = "1317"
     USER2_NAME: str = "MANU"
     USER2_MASCOT: str = "dog"
 
