@@ -43,20 +43,24 @@ class MakePublisher(PublishingProvider):
                 "order": img.order_index,
                 "url": img.public_url,
                 "image_url": img.public_url,
-                "media_type": "IMAGE",
+                "video_url": img.public_url if getattr(img, "media_type", "IMAGE") == "VIDEO" else None,
+                "media_type": getattr(img, "media_type", "IMAGE") or "IMAGE",
             }
             for img in sorted_images
         ]
         return {
             "job_id": job.job_id,
+            "account_id": getattr(job, "account_id", "account_1") or "account_1",
+            "account_handle": getattr(job, "account_handle", "") or "",
             "caption": job.final_caption or job.caption or "",
             "image_count": job.image_count,
             "images": image_items,
             # 'files' matches the exact parameter name and structure expected by Make's Instagram module:
             "files": [
                 {
-                    "media_type": "IMAGE",
+                    "media_type": getattr(img, "media_type", "IMAGE") or "IMAGE",
                     "image_url": img.public_url,
+                    "video_url": img.public_url if getattr(img, "media_type", "IMAGE") == "VIDEO" else None,
                 }
                 for img in sorted_images
             ],
@@ -75,11 +79,19 @@ class MakePublisher(PublishingProvider):
         """
         Dispatches carousel publication payload to Make.com with limited exponential backoff.
         """
-        if not self.api_url:
+        # Resolve target webhook URL: account-specific if set, fallback to default api_url
+        target_url = self.api_url
+        if hasattr(job, "account_id") and job.account_id:
+            from backend.app.config.accounts import get_account_by_id
+            acc = get_account_by_id(job.account_id)
+            if acc and acc.webhook_url:
+                target_url = acc.webhook_url.strip()
+
+        if not target_url:
             return PublishingResult(
                 success=False,
                 job_id=job.job_id,
-                error_message="Make.com API URL is not configured. Set MAKE_API_URL in .env.",
+                error_message=f"Make.com API URL is not configured for account '{getattr(job, 'account_id', 'account_1')}'. Set MAKE_API_URL in .env.",
             )
 
         payload = self.build_payload(job)
@@ -89,11 +101,11 @@ class MakePublisher(PublishingProvider):
         response: Optional[httpx.Response] = None
 
         for attempt in range(1, self.max_retries + 1):
-            logger.info(f"Dispatching Make.com publishing request for job {job.job_id} (Attempt {attempt}/{self.max_retries})...")
+            logger.info(f"Dispatching Make.com publishing request for job {job.job_id} to account '{getattr(job, 'account_id', 'account_1')}' (Attempt {attempt}/{self.max_retries})...")
             try:
                 def _do_post(http_client: httpx.Client):
                     return http_client.post(
-                        self.api_url,
+                        target_url,
                         json=payload,
                         headers=headers,
                         timeout=30.0,

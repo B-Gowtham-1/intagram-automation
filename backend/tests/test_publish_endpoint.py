@@ -103,7 +103,7 @@ def test_publish_endpoint_success():
 
     # Monkeypatch publisher to guaranteed mock success
     orig_factory = jobs_api_module.get_publishing_provider
-    jobs_api_module.get_publishing_provider = lambda: MockSuccessPublisher()
+    jobs_api_module.get_publishing_provider = lambda *args, **kwargs: MockSuccessPublisher()
 
     try:
         response = client.post(f"/api/jobs/{job_id}/publish")
@@ -157,7 +157,7 @@ def test_publish_endpoint_handles_publishing_failure():
     seed_ready_job(job_id)
 
     orig_factory = jobs_api_module.get_publishing_provider
-    jobs_api_module.get_publishing_provider = lambda: MockFailingPublisher()
+    jobs_api_module.get_publishing_provider = lambda *args, **kwargs: MockFailingPublisher()
 
     try:
         response = client.post(f"/api/jobs/{job_id}/publish")

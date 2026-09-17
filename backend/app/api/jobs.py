@@ -14,14 +14,16 @@ router = APIRouter(prefix="/api/jobs", tags=["Jobs"])
 async def create_and_process_job(
     files: List[UploadFile] = File(...),
     order_indices: Optional[str] = Form(None, description="Optional JSON array of order indices, e.g. [1, 2, 3]"),
+    media_edits: Optional[str] = Form(None, description="Optional JSON array of edit params per slide"),
     caption: Optional[str] = Form(None),
     hashtags: Optional[str] = Form(None),
+    account_id: str = Form("account_1", description="Target Instagram account ID"),
     db: Session = Depends(get_db),
 ):
     """
     Intake endpoint for an Instagram Carousel publishing job:
-    1. Reads uploaded image files and explicit sequence order.
-    2. Runs complete pipeline: Duplicate Check -> Validation -> 9:16 Normalization -> Storage Upload -> URL Verification.
+    1. Reads uploaded media files (images & videos), explicit sequence order, and edit adjustments.
+    2. Runs complete pipeline: Duplicate Check -> Validation -> 9:16 Normalization & Video Transcoding -> Storage Upload -> URL Verification.
     3. Returns Job status and public HTTPS URLs.
     """
     if not files or len(files) < 2:
@@ -43,6 +45,13 @@ async def create_and_process_job(
     if len(parsed_orders) != len(files):
         parsed_orders = list(range(1, len(files) + 1))
 
+    parsed_edits = []
+    if media_edits:
+        try:
+            parsed_edits = json.loads(media_edits)
+        except Exception:
+            parsed_edits = []
+
     file_tuples = []
     for upload, order_idx in zip(files, parsed_orders):
         content = await upload.read()
@@ -54,12 +63,16 @@ async def create_and_process_job(
         files=file_tuples,
         caption=caption,
         hashtags=hashtags,
+        account_id=account_id,
+        media_edits=parsed_edits,
     )
 
     return {
         "job_id": job.job_id,
         "status": job.status,
         "is_duplicate": is_duplicate,
+        "account_id": getattr(job, "account_id", "account_1"),
+        "account_handle": getattr(job, "account_handle", ""),
         "caption": job.caption,
         "hashtags": job.hashtags,
         "final_caption": job.final_caption,
@@ -76,6 +89,7 @@ async def create_and_process_job(
                 "processed_width": img.processed_width,
                 "processed_height": img.processed_height,
                 "public_url": img.public_url,
+                "media_type": getattr(img, "media_type", "IMAGE") or "IMAGE",
                 "status": img.status,
             }
             for img in job.images
@@ -93,6 +107,8 @@ def get_job(job_id: str, db: Session = Depends(get_db)):
     return {
         "job_id": job.job_id,
         "status": job.status,
+        "account_id": getattr(job, "account_id", "account_1"),
+        "account_handle": getattr(job, "account_handle", ""),
         "caption": job.caption,
         "hashtags": job.hashtags,
         "final_caption": job.final_caption,
@@ -112,6 +128,7 @@ def get_job(job_id: str, db: Session = Depends(get_db)):
                 "processed_width": img.processed_width,
                 "processed_height": img.processed_height,
                 "public_url": img.public_url,
+                "media_type": getattr(img, "media_type", "IMAGE") or "IMAGE",
                 "status": img.status,
             }
             for img in job.images
@@ -142,6 +159,8 @@ def publish_job(job_id: str, db: Session = Depends(get_db)):
         return {
             "job_id": job.job_id,
             "status": "PUBLISHED",
+            "account_id": getattr(job, "account_id", "account_1"),
+            "account_handle": getattr(job, "account_handle", ""),
             "instagram_post_id": job.instagram_post_id,
             "message": "Carousel was already published.",
             "published_at": job.published_at.isoformat() if job.published_at else None,
@@ -156,8 +175,8 @@ def publish_job(job_id: str, db: Session = Depends(get_db)):
     # 1. Update status to PUBLISHING
     JobRepository.update_job_status(db, job_id, JobStatus.PUBLISHING.value)
 
-    # 2. Call publishing provider
-    publisher = get_publishing_provider()
+    # 2. Call publishing provider scoped to job's target account
+    publisher = get_publishing_provider(account_id=getattr(job, "account_id", None))
     result = publisher.publish_carousel(job)
 
     # 3. Interpret explicit publishing result
@@ -176,16 +195,18 @@ def publish_job(job_id: str, db: Session = Depends(get_db)):
         # Keep images stored in Supabase so Instagram's servers can reliably fetch the public URLs
         import logging
         logging.getLogger("hermes.jobs").info(
-            f"Carousel dispatched to Make/Instagram for job {job_id}. Preserving storage URLs for Instagram ingestion."
+            f"Carousel dispatched to Make/Instagram for job {job_id} ({getattr(job, 'account_id', 'account_1')}). Preserving storage URLs for Instagram ingestion."
         )
 
         return {
             "job_id": job.job_id,
             "status": "PUBLISHED",
+            "account_id": getattr(job, "account_id", "account_1"),
+            "account_handle": getattr(job, "account_handle", ""),
             "instagram_post_id": job.instagram_post_id,
             "make_execution_id": job.make_execution_id,
             "published_at": job.published_at.isoformat() if job.published_at else None,
-            "message": "Carousel published successfully to Instagram.",
+            "message": f"Carousel published successfully to Instagram ({getattr(job, 'account_handle', '')}).",
         }
     else:
         job = JobRepository.update_job_status(
@@ -209,6 +230,8 @@ def list_jobs(limit: int = 20, db: Session = Depends(get_db)):
         {
             "job_id": j.job_id,
             "status": j.status,
+            "account_id": getattr(j, "account_id", "account_1"),
+            "account_handle": getattr(j, "account_handle", ""),
             "image_count": j.image_count,
             "instagram_post_id": j.instagram_post_id,
             "created_at": j.created_at.isoformat() if j.created_at else None,

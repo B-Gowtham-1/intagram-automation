@@ -51,14 +51,128 @@ export function calculateAspectRatio(width: number, height: number): { ratioStr:
 }
 
 export async function processSelectedFile(file: File, index: number): Promise<ImageItem> {
-  const id = `img_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  const id = `media_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
   const previewUrl = URL.createObjectURL(file);
 
-  // Basic MIME check
-  const validMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
-  const isMimeValid = validMimes.includes(file.type) || file.name.match(/\.(jpe?g|png|webp|heic|heif)$/i);
+  const isVideo = file.type.startsWith('video/') || Boolean(file.name.match(/\.(mp4|mov|webm)$/i));
 
-  if (!isMimeValid) {
+  // 1. VIDEO HANDLING
+  if (isVideo) {
+    // 50MB max for video slides
+    const maxVideoBytes = 50 * 1024 * 1024;
+    if (file.size > maxVideoBytes) {
+      return {
+        id,
+        file,
+        previewUrl,
+        filename: file.name,
+        sizeBytes: file.size,
+        width: 0,
+        height: 0,
+        aspectRatio: 'Unknown',
+        isNineSixteen: false,
+        isValid: false,
+        validationError: `Video size (${formatBytes(file.size)}) exceeds 50MB limit.`,
+        orderIndex: index,
+        mediaType: 'VIDEO',
+      };
+    }
+
+    return new Promise<ImageItem>((resolve) => {
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      video.muted = true;
+      video.playsInline = true;
+
+      const timer = setTimeout(() => {
+        // Fallback if video metadata takes too long
+        resolve({
+          id,
+          file,
+          previewUrl,
+          filename: file.name,
+          sizeBytes: file.size,
+          width: 1080,
+          height: 1920,
+          aspectRatio: '9:16',
+          isNineSixteen: true,
+          isValid: true,
+          orderIndex: index,
+          mediaType: 'VIDEO',
+          duration: 15,
+        });
+      }, 3000);
+
+      video.onloadeddata = () => {
+        clearTimeout(timer);
+        video.currentTime = Math.min(0.5, (video.duration || 1) / 2);
+      };
+
+      video.onseeked = () => {
+        const vw = video.videoWidth || 1080;
+        const vh = video.videoHeight || 1920;
+        const { ratioStr, isNineSixteen } = calculateAspectRatio(vw, vh);
+
+        // Generate poster frame thumbnail from video canvas
+        let thumbUrl = previewUrl;
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = vw;
+          canvas.height = vh;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(video, 0, 0, vw, vh);
+            thumbUrl = canvas.toDataURL('image/jpeg', 0.85);
+          }
+        } catch {
+          thumbUrl = previewUrl;
+        }
+
+        resolve({
+          id,
+          file,
+          previewUrl: thumbUrl,
+          filename: file.name,
+          sizeBytes: file.size,
+          width: vw,
+          height: vh,
+          aspectRatio: ratioStr,
+          isNineSixteen,
+          isValid: true,
+          orderIndex: index,
+          mediaType: 'VIDEO',
+          duration: Math.round(video.duration || 0),
+        });
+      };
+
+      video.onerror = () => {
+        clearTimeout(timer);
+        resolve({
+          id,
+          file,
+          previewUrl,
+          filename: file.name,
+          sizeBytes: file.size,
+          width: 0,
+          height: 0,
+          aspectRatio: 'Unknown',
+          isNineSixteen: false,
+          isValid: false,
+          validationError: 'Unable to decode video. Please select another MP4/MOV file.',
+          orderIndex: index,
+          mediaType: 'VIDEO',
+        });
+      };
+
+      video.src = previewUrl;
+    });
+  }
+
+  // 2. IMAGE HANDLING
+  const validImageMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
+  const isImageValid = validImageMimes.includes(file.type) || Boolean(file.name.match(/\.(jpe?g|png|webp|heic|heif)$/i));
+
+  if (!isImageValid) {
     return {
       id,
       file,
@@ -70,12 +184,13 @@ export async function processSelectedFile(file: File, index: number): Promise<Im
       aspectRatio: 'Unknown',
       isNineSixteen: false,
       isValid: false,
-      validationError: 'Unsupported file format. Please upload JPG, PNG, or WEBP.',
+      validationError: 'Unsupported format. Upload JPG, PNG, WEBP, or MP4/MOV.',
       orderIndex: index,
+      mediaType: 'IMAGE',
     };
   }
 
-  // Maximum file size check (20MB)
+  // Maximum image size check (20MB)
   const maxBytes = 20 * 1024 * 1024;
   if (file.size > maxBytes) {
     return {
@@ -91,10 +206,10 @@ export async function processSelectedFile(file: File, index: number): Promise<Im
       isValid: false,
       validationError: `File size (${formatBytes(file.size)}) exceeds 20MB limit.`,
       orderIndex: index,
+      mediaType: 'IMAGE',
     };
   }
 
-  // Inspect image readability and dimensions
   return new Promise<ImageItem>((resolve) => {
     const img = new Image();
     img.onload = () => {
@@ -111,6 +226,10 @@ export async function processSelectedFile(file: File, index: number): Promise<Im
         isNineSixteen,
         isValid: true,
         orderIndex: index,
+        mediaType: 'IMAGE',
+        rotation: 0,
+        fitMode: 'cover',
+        alignment: 'center',
       });
     };
 
@@ -128,9 +247,136 @@ export async function processSelectedFile(file: File, index: number): Promise<Im
         isValid: false,
         validationError: 'Unable to read image. Please select another image.',
         orderIndex: index,
+        mediaType: 'IMAGE',
       });
     };
 
     img.src = previewUrl;
   });
+}
+
+/**
+ * Transforms an image on HTML5 Canvas:
+ * Rotates, fits or covers onto 1080x1920 canvas, and returns updated File and preview URL.
+ */
+export async function transformImageCanvas(
+  file: File,
+  options: {
+    rotation: number;
+    fitMode: 'cover' | 'contain';
+    alignment: 'center' | 'top' | 'bottom' | 'left' | 'right';
+  }
+): Promise<{ file: File; previewUrl: string }> {
+  const { rotation, fitMode, alignment } = options;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    const sourceUrl = URL.createObjectURL(file);
+
+    img.onload = () => {
+      URL.revokeObjectURL(sourceUrl);
+
+      // Target Instagram 9:16 canvas size
+      const targetW = 1080;
+      const targetH = 1920;
+
+      // 1. First offscreen canvas to handle rotation
+      const rotCanvas = document.createElement('canvas');
+      const rotCtx = rotCanvas.getContext('2d')!;
+      const rotRad = (rotation * Math.PI) / 180;
+      const is90or270 = rotation % 180 !== 0;
+
+      const origW = img.naturalWidth;
+      const origH = img.naturalHeight;
+      rotCanvas.width = is90or270 ? origH : origW;
+      rotCanvas.height = is90or270 ? origW : origH;
+
+      rotCtx.translate(rotCanvas.width / 2, rotCanvas.height / 2);
+      rotCtx.rotate(rotRad);
+      rotCtx.drawImage(img, -origW / 2, -origH / 2);
+
+      const rw = rotCanvas.width;
+      const rh = rotCanvas.height;
+
+      // 2. Final 9:16 composition canvas
+      const finalCanvas = document.createElement('canvas');
+      finalCanvas.width = targetW;
+      finalCanvas.height = targetH;
+      const ctx = finalCanvas.getContext('2d')!;
+
+      if (fitMode === 'contain') {
+        // Dark slate backdrop
+        ctx.fillStyle = '#090d16';
+        ctx.fillRect(0, 0, targetW, targetH);
+
+        // Proportional scale to fit inside 1080x1920
+        const scale = minMaxScale(rw, rh, targetW, targetH);
+        const dw = Math.round(rw * scale);
+        const dh = Math.round(rh * scale);
+        const dx = (targetW - dw) / 2;
+        const dy = (targetH - dh) / 2;
+
+        ctx.drawImage(rotCanvas, dx, dy, dw, dh);
+      } else {
+        // Cover / Fill mode: Crop to 9:16 with alignment
+        const targetRatio = targetW / targetH;
+        const currentRatio = rw / rh;
+
+        let srcX = 0;
+        let srcY = 0;
+        let srcW = rw;
+        let srcH = rh;
+
+        if (currentRatio > targetRatio) {
+          // Wider: crop left/right
+          srcW = Math.round(rh * targetRatio);
+          if (alignment === 'left') {
+            srcX = 0;
+          } else if (alignment === 'right') {
+            srcX = rw - srcW;
+          } else {
+            srcX = (rw - srcW) / 2;
+          }
+        } else {
+          // Taller: crop top/bottom
+          srcH = Math.round(rw / targetRatio);
+          if (alignment === 'top') {
+            srcY = 0;
+          } else if (alignment === 'bottom') {
+            srcY = rh - srcH;
+          } else {
+            srcY = (rh - srcH) / 2;
+          }
+        }
+
+        ctx.drawImage(rotCanvas, srcX, srcY, srcW, srcH, 0, 0, targetW, targetH);
+      }
+
+      finalCanvas.toBlob(
+        (blob) => {
+          if (!blob) {
+            resolve({ file, previewUrl: URL.createObjectURL(file) });
+            return;
+          }
+          const newFile = new File([blob], file.name.replace(/\.[^.]+$/, '') + '_edited.jpg', {
+            type: 'image/jpeg',
+          });
+          const previewUrl = URL.createObjectURL(newFile);
+          resolve({ file: newFile, previewUrl });
+        },
+        'image/jpeg',
+        0.95
+      );
+    };
+
+    img.onerror = () => {
+      resolve({ file, previewUrl: URL.createObjectURL(file) });
+    };
+
+    img.src = sourceUrl;
+  });
+}
+
+function minMaxScale(w: number, h: number, maxW: number, maxH: number): number {
+  return Math.min(maxW / w, maxH / h);
 }

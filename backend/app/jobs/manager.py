@@ -9,10 +9,12 @@ from backend.app.jobs.states import JobStatus
 from backend.app.jobs.fingerprint import compute_submission_fingerprint, normalize_text
 from backend.app.images.validator import ImageValidator
 from backend.app.images.processor import ImageProcessor
+from backend.app.images.video_processor import VideoProcessor
 from backend.app.images.ordering import OrderedImageItem, validate_carousel_order
 from backend.app.storage.factory import get_storage_provider
 from backend.app.storage.base import StorageProvider
 from backend.app.validation.urls import verify_image_url_accessibility
+from backend.app.config.accounts import get_account_by_id
 
 logger = logging.getLogger("hermes.jobs.manager")
 
@@ -41,39 +43,50 @@ class JobManager:
         files: List[Tuple[str, bytes, int]],  # (filename, raw_bytes, order_index)
         caption: Optional[str] = None,
         hashtags: Optional[str] = None,
+        account_id: str = "account_1",
+        media_edits: Optional[List[dict]] = None,
     ) -> Tuple[Job, bool]:
         """
-        Creates and processes a new carousel job.
+        Creates and processes a new carousel job for the target Instagram account.
         
         Returns:
             (Job, is_duplicate: bool)
         """
+        # Resolve target account
+        account = get_account_by_id(account_id)
+        account_handle = account.handle if account else "@unknown"
+
         # Sort files explicitly by order_index (1-indexed)
         sorted_files = sorted(files, key=lambda x: x[2])
         raw_bytes_list = [f[1] for f in sorted_files]
 
-        # 1. Duplicate Protection Fingerprinting (Section 24)
-        fingerprint = compute_submission_fingerprint(raw_bytes_list, caption, hashtags)
+        # 1. Duplicate Protection Fingerprinting (Section 24, scoped to account)
+        fingerprint = compute_submission_fingerprint(
+            raw_bytes_list, caption=caption, hashtags=hashtags, account_id=account_id
+        )
         existing_published = JobRepository.get_published_job_by_fingerprint(db, fingerprint)
         if existing_published:
-            logger.info(f"Duplicate submission detected. Existing published job: {existing_published.job_id}")
+            logger.info(
+                f"Duplicate submission detected for account '{account_id}'. Existing published job: {existing_published.job_id}"
+            )
             return existing_published, True
 
-        # 2. Initialize Unique Job ID
+        # 2. State: RECEIVED
         job_id = f"job_{uuid.uuid4().hex[:12]}"
         final_caption = cls.construct_final_caption(caption, hashtags)
-
         job = JobRepository.create_job(
             db=db,
             job_id=job_id,
             fingerprint=fingerprint,
+            account_id=account_id,
+            account_handle=account_handle,
             caption=caption,
             hashtags=hashtags,
             final_caption=final_caption,
             image_count=len(sorted_files),
             status=JobStatus.RECEIVED.value,
         )
-        logger.info(f"Created job {job_id} [RECEIVED] with {len(sorted_files)} images")
+        logger.info(f"Created job {job_id} [RECEIVED] for account '{account_id}' with {len(sorted_files)} images")
 
         try:
             # 3. State: VALIDATING
@@ -97,25 +110,61 @@ class JobManager:
 
             # 4. State: PROCESSING
             JobRepository.update_job_status(db, job_id, JobStatus.PROCESSING.value)
-            processed_items = []
+            edits_by_order = {e.get("order_index"): e for e in (media_edits or []) if isinstance(e, dict)}
+            prepared_items = []
+
             for (filename, raw_bytes, order_idx), val in zip(sorted_files, validation_results):
-                logger.info(f"Processing image #{order_idx} ({filename}) to 9:16 format...")
-                proc_result = ImageProcessor.process(raw_bytes)
-                processed_items.append((filename, proc_result, order_idx, val))
+                edit = edits_by_order.get(order_idx, {})
+                rotation = edit.get("rotation", 0)
+                fit_mode = edit.get("fit_mode", "cover")
+                alignment = edit.get("alignment", "center")
+                is_muted = edit.get("is_muted", False)
+
+                if val.media_type == "VIDEO":
+                    logger.info(
+                        f"Processing video #{order_idx} ({filename}) to 9:16 "
+                        f"[rot={rotation}, fit={fit_mode}, align={alignment}, mute={is_muted}]..."
+                    )
+                    video_res = VideoProcessor.process(
+                        raw_bytes,
+                        rotation=rotation,
+                        fit_mode=fit_mode,
+                        alignment=alignment,
+                        is_muted=is_muted,
+                    )
+                    prepared_items.append((filename, video_res.processed_bytes, order_idx, val, "VIDEO", video_res))
+                else:
+                    logger.info(
+                        f"Processing image #{order_idx} ({filename}) to 9:16 "
+                        f"[rot={rotation}, fit={fit_mode}, align={alignment}]..."
+                    )
+                    proc_result = ImageProcessor.process(
+                        raw_bytes,
+                        rotation=rotation,
+                        fit_mode=fit_mode,
+                        alignment=alignment,
+                    )
+                    prepared_items.append((filename, proc_result.processed_bytes, order_idx, val, "IMAGE", proc_result))
 
             # 5. State: UPLOADING
             JobRepository.update_job_status(db, job_id, JobStatus.UPLOADING.value)
             storage = get_storage_provider()
             uploaded_urls = []
 
-            for filename, proc_result, order_idx, val in processed_items:
-                storage_key = StorageProvider.get_job_storage_path(job_id, order_idx, ext="jpg")
-                logger.info(f"Uploading image #{order_idx} to storage: {storage_key}")
+            for filename, data_bytes, order_idx, val, media_type, proc_res in prepared_items:
+                ext = "mp4" if media_type == "VIDEO" else "jpg"
+                content_type = "video/mp4" if media_type == "VIDEO" else "image/jpeg"
+                storage_key = StorageProvider.get_job_storage_path(job_id, order_idx, ext=ext)
+
+                logger.info(f"Uploading {media_type} #{order_idx} to storage: {storage_key}")
                 public_url = storage.upload(
-                    proc_result.processed_bytes,
+                    data_bytes,
                     storage_key,
-                    content_type="image/jpeg"
+                    content_type=content_type
                 )
+
+                proc_w = proc_res.width if proc_res else val.width or 1080
+                proc_h = proc_res.height if proc_res else val.height or 1920
 
                 JobRepository.add_job_image(
                     db=db,
@@ -124,10 +173,11 @@ class JobManager:
                     original_filename=filename,
                     original_width=val.width,
                     original_height=val.height,
-                    processed_width=proc_result.width,
-                    processed_height=proc_result.height,
+                    processed_width=proc_w,
+                    processed_height=proc_h,
                     storage_key=storage_key,
                     public_url=public_url,
+                    media_type=media_type,
                     status="READY",
                 )
                 uploaded_urls.append(public_url)

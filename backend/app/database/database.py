@@ -32,3 +32,28 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+def run_migrations(engine):
+    """Ensure newly added columns exist in existing SQLite database tables."""
+    from sqlalchemy import text
+    with engine.begin() as conn:
+        try:
+            res = conn.execute(text("PRAGMA table_info(jobs)"))
+            job_cols = {row[1] for row in res.fetchall()}
+            if job_cols:
+                if "account_id" not in job_cols:
+                    conn.execute(text("ALTER TABLE jobs ADD COLUMN account_id VARCHAR(64) DEFAULT 'account_1'"))
+                if "account_handle" not in job_cols:
+                    conn.execute(text("ALTER TABLE jobs ADD COLUMN account_handle VARCHAR(128)"))
+
+            res_img = conn.execute(text("PRAGMA table_info(job_images)"))
+            img_cols = {row[1] for row in res_img.fetchall()}
+            if img_cols:
+                if "media_type" not in img_cols:
+                    conn.execute(text("ALTER TABLE job_images ADD COLUMN media_type VARCHAR(16) DEFAULT 'IMAGE'"))
+                if "duration_seconds" not in img_cols:
+                    conn.execute(text("ALTER TABLE job_images ADD COLUMN duration_seconds INTEGER"))
+        except Exception:
+            pass
+

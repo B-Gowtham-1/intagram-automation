@@ -43,8 +43,8 @@ def verify_image_url_accessibility(
                 return False, f"URL returned HTTP status {response.status_code} ({response.reason_phrase})."
 
             content_type = response.headers.get("content-type", "").lower()
-            if not content_type.startswith("image/"):
-                return False, f"URL Content-Type '{content_type}' is not an image type."
+            if not (content_type.startswith("image/") or content_type.startswith("video/") or "application/octet-stream" in content_type):
+                return False, f"URL Content-Type '{content_type}' is not a valid media type (image or video)."
 
             return True, None
 

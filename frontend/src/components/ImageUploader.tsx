@@ -71,17 +71,17 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           fileInputRef.current?.click();
         }
       }}
-      className={`border-2 border-dashed rounded-2xl p-8 text-center transition-all cursor-pointer backdrop-blur ${
+      className={`border-2 border-dashed rounded p-8 text-center transition-all cursor-pointer backdrop-blur ${
         isDragging
-          ? 'border-pink-500 bg-pink-500/10 shadow-lg shadow-pink-500/10 scale-[1.01]'
-          : 'border-slate-800 hover:border-pink-500/50 bg-slate-900/40 hover:bg-slate-900/60'
+          ? 'border-yellow-400 bg-yellow-400/10 shadow-[0_0_25px_rgba(250,204,21,0.25)] scale-[1.01]'
+          : 'border-[#1e2433] hover:border-yellow-400/60 bg-[#0d0f15] hover:bg-[#11141c]'
       } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
     >
       <input
         ref={fileInputRef}
         type="file"
         multiple
-        accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+        accept="image/jpeg,image/png,image/webp,image/heic,image/heif,video/mp4,video/quicktime,video/webm"
         className="hidden"
         disabled={disabled || isProcessing}
         onChange={(e) => handleFiles(e.target.files)}
@@ -89,46 +89,46 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
       <div className="flex flex-col items-center justify-center space-y-3 pointer-events-none">
         <div
-          className={`p-3 rounded-full ring-1 transition ${
+          className={`p-3 rounded border transition ${
             isDragging
-              ? 'bg-pink-500/20 text-pink-300 ring-pink-500/40'
-              : 'bg-pink-500/10 text-pink-400 ring-pink-500/20'
+              ? 'bg-yellow-400/20 text-yellow-400 border-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.3)]'
+              : 'bg-yellow-400/10 text-yellow-400 border-yellow-400/30'
           }`}
         >
           {isProcessing ? (
-            <Loader2 className="w-8 h-8 animate-spin text-pink-400" />
+            <Loader2 className="w-8 h-8 animate-spin text-yellow-400" />
           ) : (
             <UploadCloud className="w-8 h-8" />
           )}
         </div>
 
         <div>
-          <p className="text-sm font-semibold text-slate-200">
+          <p className="text-sm font-bold text-gray-200 uppercase tracking-wide font-orbitron">
             {isProcessing ? (
-              'Analyzing images...'
+              'ANALYZING MEDIA PIPELINE...'
             ) : isDragging ? (
-              <span className="text-pink-400 font-bold">Drop images now!</span>
+              <span className="text-yellow-400">DROP MEDIA ASSETS NOW</span>
             ) : (
               <>
-                Drag &amp; drop images here, or{' '}
-                <span className="text-pink-400 underline decoration-pink-500/40 underline-offset-4">
-                  select files
+                DRAG &amp; DROP PHOTOS &amp; VIDEOS, OR{' '}
+                <span className="text-yellow-400 underline decoration-yellow-400/60 underline-offset-4">
+                  BROWSE FILES
                 </span>
               </>
             )}
           </p>
-          <p className="text-xs text-slate-400 mt-1">
-            Supports JPG, PNG, WEBP, HEIC &bull; Target Instagram Carousel format: 9:16 (1080 &times; 1920)
+          <p className="text-xs text-gray-400 mt-1 max-w-sm mx-auto font-mono">
+            JPG, PNG, WEBP, MP4, MOV, WEBM &bull; AUTO 9:16 CROP &bull; MAX 50MB
           </p>
         </div>
 
         <button
           type="button"
           disabled={disabled || isProcessing}
-          className="mt-2 inline-flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
+          className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 text-xs font-bold rounded bg-[#161a24] hover:bg-[#1f2533] text-yellow-400 border border-yellow-400/40 transition shadow-sm font-mono tracking-wider"
         >
-          <ImageIcon className="w-4 h-4 text-pink-400" />
-          [ Select Images ]
+          <ImageIcon className="w-4 h-4 text-yellow-400" />
+          <span>SELECT ASSETS</span>
         </button>
       </div>
     </div>

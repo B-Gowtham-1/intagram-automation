@@ -6,7 +6,9 @@ from backend.app.config.settings import get_settings
 from backend.app.api.health import router as health_router
 from backend.app.api.images import router as images_router
 from backend.app.api.jobs import router as jobs_router
-from backend.app.database.database import engine, Base
+from backend.app.api.accounts import router as accounts_router
+from backend.app.api.auth import router as auth_router
+from backend.app.database.database import engine, Base, run_migrations
 import backend.app.database.models  # Ensure models are loaded
 
 settings = get_settings()
@@ -22,9 +24,10 @@ logger = logging.getLogger("hermes")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info(f"Starting Instagram Carousel Automation Agent [{settings.APP_ENV}]")
-    # Initialize SQLite tables
+    # Initialize SQLite tables and apply incremental column migrations
     Base.metadata.create_all(bind=engine)
-    logger.info("Database tables initialized successfully.")
+    run_migrations(engine)
+    logger.info("Database tables and migrations initialized successfully.")
     yield
     logger.info("Shutting down Instagram Carousel Automation Agent")
 
@@ -49,6 +52,8 @@ app.add_middleware(
 app.include_router(health_router)
 app.include_router(images_router)
 app.include_router(jobs_router)
+app.include_router(accounts_router)
+app.include_router(auth_router)
 
 
 @app.get("/")

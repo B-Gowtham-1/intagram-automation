@@ -61,6 +61,10 @@ def test_fingerprint_deterministic_and_unique():
     fp_diff_caption = compute_submission_fingerprint([img1, img2], "Different caption", "#hash1 #hash2")
     assert fp1 != fp_diff_caption
 
+    # Different accounts produce different fingerprints
+    fp_acc2 = compute_submission_fingerprint([img1, img2], "Caption text", "#hash1 #hash2", account_id="account_2")
+    assert fp1 != fp_acc2
+
 
 # --- 2. JobManager Orchestration Pipeline ---
 
@@ -183,6 +187,7 @@ def test_api_jobs_create_and_get():
 
     job_id = res["job_id"]
     assert res["status"] == "READY"
+    assert res["account_id"] == "account_1"
     assert res["image_count"] == 2
     assert len(res["images"]) == 2
     assert res["images"][0]["order_index"] == 1
@@ -194,9 +199,23 @@ def test_api_jobs_create_and_get():
     job_detail = get_res.json()
     assert job_detail["job_id"] == job_id
     assert job_detail["status"] == "READY"
+    assert job_detail["account_id"] == "account_1"
 
     # Verify GET /api/jobs
     list_res = client.get("/api/jobs")
     assert list_res.status_code == 200
     items = list_res.json()
     assert any(j["job_id"] == job_id for j in items)
+
+
+def test_api_accounts_list():
+    response = client.get("/api/accounts")
+    assert response.status_code == 200
+    accounts = response.json()
+    assert len(accounts) == 3
+    ids = [a["id"] for a in accounts]
+    assert "account_1" in ids
+    assert "account_2" in ids
+    assert any(a["handle"] == "@nature.art" for a in accounts)
+    assert any(a["handle"] == "@framesofnature" for a in accounts)
+    assert any(a["handle"] == "@framesofmovies" for a in accounts)

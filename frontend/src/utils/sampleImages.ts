@@ -76,3 +76,13 @@ export async function generateCorruptImage(): Promise<ImageItem> {
   const badFile = new File([badContent], 'corrupted_image.jpg', { type: 'image/jpeg' });
   return processSelectedFile(badFile, 999);
 }
+
+/**
+ * Loads the public sample video for instant testing.
+ */
+export async function generateTestVideo(orderIndex: number = 0): Promise<ImageItem> {
+  const res = await fetch('/sample_video.mp4');
+  const blob = await res.blob();
+  const file = new File([blob], 'sample_video.mp4', { type: 'video/mp4' });
+  return processSelectedFile(file, orderIndex);
+}

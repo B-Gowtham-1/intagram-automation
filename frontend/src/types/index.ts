@@ -44,6 +44,12 @@ export interface ImageItem {
   isValid: boolean;
   validationError?: string;
   orderIndex: number;
+  mediaType: 'IMAGE' | 'VIDEO';
+  duration?: number;
+  rotation?: number;
+  fitMode?: 'cover' | 'contain';
+  alignment?: 'center' | 'top' | 'bottom' | 'left' | 'right';
+  isMuted?: boolean;
 }
 
 export interface JobImageResponse {
@@ -54,13 +60,24 @@ export interface JobImageResponse {
   processed_width: number;
   processed_height: number;
   public_url: string;
+  media_type?: 'IMAGE' | 'VIDEO' | string;
   status: string;
+}
+
+export interface AccountItem {
+  id: string;
+  name: string;
+  handle: string;
+  description: string;
+  has_webhook: boolean;
 }
 
 export interface JobResponse {
   job_id: string;
   status: JobStatus;
   is_duplicate: boolean;
+  account_id?: string;
+  account_handle?: string;
   caption?: string | null;
   hashtags?: string | null;
   final_caption?: string | null;
@@ -74,6 +91,8 @@ export interface JobResponse {
 export interface PublishResponse {
   job_id: string;
   status: JobStatus;
+  account_id?: string;
+  account_handle?: string;
   instagram_post_id?: string | null;
   make_execution_id?: string | null;
   published_at?: string | null;

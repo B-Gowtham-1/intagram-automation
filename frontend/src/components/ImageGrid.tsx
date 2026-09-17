@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import type { ImageItem } from '../types';
 import { ImageCard } from './ImageCard';
-import { Layers, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 interface ImageGridProps {
   images: ImageItem[];
   onRemove: (id: string) => void;
   onMove: (index: number, direction: 'up' | 'down') => void;
   onReorder: (startIndex: number, endIndex: number) => void;
+  onEdit?: (image: ImageItem) => void;
   onClearAll?: () => void;
 }
 
@@ -16,6 +17,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
   onRemove,
   onMove,
   onReorder,
+  onEdit,
   onClearAll,
 }) => {
   const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
@@ -48,14 +50,14 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
-        <div className="flex items-center gap-2">
-          <Layers className="w-4 h-4 text-pink-400" />
-          <h3 className="text-sm font-semibold text-slate-200">
-            Carousel Order ({images.length} of max 10)
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#1e2433] pb-3">
+        <div className="flex items-center gap-2 font-mono">
+          <span className="text-yellow-400 font-bold text-xs">// 02.B</span>
+          <h3 className="text-xs sm:text-sm font-bold tracking-wider text-gray-200 uppercase font-orbitron">
+            CAROUSEL SEQUENCE ({images.length} / MAX 10 SLIDES)
           </h3>
-          <span className="text-xs text-slate-500">
-            &bull; Drag cards or use &uarr;&darr; buttons to reorder
+          <span className="text-[11px] text-gray-400 hidden sm:inline font-mono">
+            &bull; DRAG OR USE &uarr;&darr; TO ARRANGE
           </span>
         </div>
 
@@ -63,43 +65,43 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
           <button
             type="button"
             onClick={onClearAll}
-            className="text-xs text-slate-400 hover:text-rose-400 transition"
+            className="text-xs text-gray-400 hover:text-rose-400 transition font-mono"
           >
-            Clear all images
+            [CLEAR_ALL_SLIDES]
           </button>
         )}
       </div>
 
       {/* Constraints Notices */}
       {!isCountValid && (
-        <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs text-amber-300 flex items-center gap-2">
+        <div className="p-3 rounded bg-yellow-400/10 border border-yellow-400/30 text-xs text-yellow-400 flex items-center gap-2 font-mono">
           <AlertTriangle className="w-4 h-4 flex-shrink-0" />
           <span>
             {images.length < 2
-              ? `Instagram Carousels require at least 2 images (currently ${images.length} selected).`
-              : `Instagram Carousels support a maximum of 10 images (currently ${images.length} selected).`}
+              ? `// PIPELINE WARNING: Instagram requires at least 2 slides (currently ${images.length} selected).`
+              : `// PIPELINE WARNING: Instagram supports max 10 slides (currently ${images.length} selected).`}
           </span>
         </div>
       )}
 
       {hasInvalid && (
-        <div className="p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-xs text-rose-300 flex items-center gap-2">
+        <div className="p-3 rounded bg-rose-500/10 border border-rose-500/30 text-xs text-rose-300 flex items-center gap-2 font-mono">
           <AlertTriangle className="w-4 h-4 flex-shrink-0" />
-          <span>Some images have validation errors and cannot be published. Please remove or replace them.</span>
+          <span>// CORRUPT NODE DETECTED: Remove or replace invalid slides before deployment.</span>
         </div>
       )}
 
       {isCountValid && !hasInvalid && (
-        <div className="p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-300 flex items-center gap-2">
+        <div className="p-2.5 rounded bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-400 flex items-center gap-2 font-mono">
           <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
           <span>
-            {validCount} images validated and ready in specified carousel sequence.
+            // SEQUENCE_VERIFIED: {validCount} slides validated and queued for execution.
           </span>
         </div>
       )}
 
       {/* Grid of Image Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 sm:gap-4">
         {images.map((img, idx) => (
           <ImageCard
             key={img.id}
@@ -108,6 +110,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
             total={images.length}
             onRemove={onRemove}
             onMove={onMove}
+            onEdit={onEdit}
             onDragStart={handleDragStart}
             onDragOver={handleDragOver}
             onDrop={handleDrop}

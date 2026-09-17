@@ -10,6 +10,8 @@ class JobRepository:
         db: Session,
         job_id: str,
         fingerprint: str,
+        account_id: str = "account_1",
+        account_handle: Optional[str] = None,
         caption: Optional[str] = None,
         hashtags: Optional[str] = None,
         final_caption: Optional[str] = None,
@@ -20,6 +22,8 @@ class JobRepository:
         job = Job(
             job_id=job_id,
             fingerprint=fingerprint,
+            account_id=account_id,
+            account_handle=account_handle,
             caption=caption,
             hashtags=hashtags,
             final_caption=final_caption,
@@ -91,6 +95,8 @@ class JobRepository:
         processed_height: int,
         storage_key: str,
         public_url: str,
+        media_type: str = "IMAGE",
+        duration_seconds: Optional[int] = None,
         status: str = "READY",
     ) -> JobImage:
         image = JobImage(
@@ -101,6 +107,8 @@ class JobRepository:
             original_height=original_height,
             processed_width=processed_width,
             processed_height=processed_height,
+            media_type=media_type,
+            duration_seconds=duration_seconds,
             storage_key=storage_key,
             public_url=public_url,
             status=status,

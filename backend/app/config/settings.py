@@ -49,12 +49,26 @@ class Settings(BaseSettings):
     MAKE_API_URL: str = ""
     MAKE_API_TOKEN: str = ""
     MAKE_SCENARIO_ID: str = ""
+    MAKE_API_URL_ACCOUNT_1: str = ""
+    MAKE_API_URL_ACCOUNT_2: str = ""
+    MAKE_API_URL_ACCOUNT_3: str = ""
 
     # Image Processing Configuration (Phase D)
     TARGET_WIDTH: int = 1080
     TARGET_HEIGHT: int = 1920
     MAX_IMAGES_PER_CAROUSEL: int = 10
     MAX_IMAGE_SIZE_MB: int = 20
+
+    # User Authentication (loaded from .env)
+    USER1_USERNAME: str = ""
+    USER1_PASSWORD: str = ""
+    USER1_NAME: str = "GOWTHAM"
+    USER1_MASCOT: str = "pig"
+
+    USER2_USERNAME: str = ""
+    USER2_PASSWORD: str = ""
+    USER2_NAME: str = "MANU"
+    USER2_MASCOT: str = "dog"
 
     @property
     def is_production(self) -> bool:

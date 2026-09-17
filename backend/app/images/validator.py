@@ -8,7 +8,9 @@ from backend.app.config.settings import get_settings
 
 settings = get_settings()
 
-ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
+ALLOWED_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".heic", ".heif"}
+ALLOWED_VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm"}
+ALLOWED_EXTENSIONS = ALLOWED_IMAGE_EXTENSIONS | ALLOWED_VIDEO_EXTENSIONS
 ALLOWED_FORMATS = {"JPEG", "PNG", "WEBP"}
 
 
@@ -16,6 +18,7 @@ class ImageValidationResult(BaseModel):
     filename: str
     is_valid: bool
     size_bytes: int
+    media_type: str = "IMAGE"  # "IMAGE" | "VIDEO"
     format: Optional[str] = None
     width: int = 0
     height: int = 0
@@ -85,17 +88,54 @@ class ImageValidator:
                 error_message=f"Unsupported file extension '{ext}'. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
             )
 
-        # 3. File size check against configured limit
+        # 3. Video Validation Path
+        if ext in ALLOWED_VIDEO_EXTENSIONS:
+            max_video_bytes = 50 * 1024 * 1024  # 50 MB max for carousel video slides
+            if size_bytes > max_video_bytes:
+                return ImageValidationResult(
+                    filename=filename,
+                    is_valid=False,
+                    media_type="VIDEO",
+                    size_bytes=size_bytes,
+                    error_message=f"Video size ({size_bytes / (1024*1024):.1f} MB) exceeds maximum allowed 50 MB for Instagram carousel slides."
+                )
+
+            if size_bytes < 1024:
+                return ImageValidationResult(
+                    filename=filename,
+                    is_valid=False,
+                    media_type="VIDEO",
+                    size_bytes=size_bytes,
+                    error_message="Video file is too small or corrupt."
+                )
+
+            # Valid video
+            return ImageValidationResult(
+                filename=filename,
+                is_valid=True,
+                size_bytes=size_bytes,
+                media_type="VIDEO",
+                format=ext.lstrip(".").upper(),
+                width=1080,
+                height=1920,
+                aspect_ratio="9:16",
+                is_nine_sixteen=True,
+                needs_cropping=False,
+                error_message=None
+            )
+
+        # 4. Image File size check against configured limit
         max_bytes = settings.MAX_IMAGE_SIZE_MB * 1024 * 1024
         if size_bytes > max_bytes:
             return ImageValidationResult(
                 filename=filename,
                 is_valid=False,
+                media_type="IMAGE",
                 size_bytes=size_bytes,
                 error_message=f"File size ({size_bytes / (1024*1024):.1f} MB) exceeds maximum allowed {settings.MAX_IMAGE_SIZE_MB} MB."
             )
 
-        # 4. Pillow Readability & Integrity Check
+        # 5. Pillow Readability & Integrity Check (for images)
         try:
             # First pass: stream verification
             with Image.open(io.BytesIO(file_bytes)) as probe:
