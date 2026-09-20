@@ -21,6 +21,7 @@ class LocalStorageProvider(StorageProvider):
         return self.root / clean
 
     def upload(self, file_bytes: bytes, storage_path: str, content_type: str = "image/jpeg") -> str:
+        file_bytes, storage_path, content_type = self.ensure_jpeg_if_heic(file_bytes, storage_path, content_type)
         target = self._full_path(storage_path)
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(file_bytes)

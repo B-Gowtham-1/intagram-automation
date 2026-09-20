@@ -38,6 +38,7 @@ class SupabaseStorageProvider(StorageProvider):
         return f"{self.supabase_url}/storage/v1/object/public/{self.bucket_name}/{clean_path}"
 
     def upload(self, file_bytes: bytes, storage_path: str, content_type: str = "image/jpeg") -> str:
+        file_bytes, storage_path, content_type = self.ensure_jpeg_if_heic(file_bytes, storage_path, content_type)
         clean_path = storage_path.lstrip("/")
         upload_url = f"{self.supabase_url}/storage/v1/object/{self.bucket_name}/{clean_path}"
 

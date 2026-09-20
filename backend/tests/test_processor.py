@@ -143,3 +143,50 @@ def test_api_process_endpoint():
     assert data["original_width"] == 1200
     assert data["original_height"] == 1600
     assert data["final_size_bytes"] > 0
+
+
+def test_process_heic_image_converts_to_jpeg():
+    raw_bytes = create_test_image_bytes(1000, 1500, "RGB", "HEIF")
+    result = ImageProcessor.process(raw_bytes)
+
+    assert result.format == "JPEG"
+    assert result.width == 1080
+    assert result.height == 1920
+
+    with Image.open(io.BytesIO(result.processed_bytes)) as out_img:
+        assert out_img.format == "JPEG"
+        assert out_img.mode == "RGB"
+        assert out_img.size == (1080, 1920)
+
+
+def test_api_process_heic_endpoint():
+    raw_bytes = create_test_image_bytes(1080, 1920, "RGB", "HEIF")
+    files = {"file": ("camera.heic", raw_bytes, "image/heic")}
+
+    response = client.post("/api/images/process", files=files)
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["filename"] == "camera.heic"
+    assert data["format"] == "JPEG"
+    assert data["width"] == 1080
+    assert data["height"] == 1920
+
+
+def test_api_upload_public_links_heic():
+    raw_bytes = create_test_image_bytes(1080, 1920, "RGB", "HEIF")
+    files = [("files", ("iphone_photo.heic", raw_bytes, "image/heic"))]
+
+    response = client.post("/api/images/upload-public-links", files=files)
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["success"] is True
+    assert data["count"] == 1
+    link_item = data["links"][0]
+    assert link_item["filename"] == "iphone_photo.heic"
+    assert link_item["media_type"] == "IMAGE"
+    assert link_item["width"] == 1080
+    assert link_item["height"] == 1920
+    # Confirm public link ends with .jpg
+    assert link_item["public_url"].endswith(".jpg")

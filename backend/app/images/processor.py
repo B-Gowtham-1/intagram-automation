@@ -4,6 +4,12 @@ from PIL import Image, ImageOps
 from pydantic import BaseModel
 from backend.app.config.settings import get_settings
 
+try:
+    import pillow_heif
+    pillow_heif.register_heif_opener()
+except ImportError:
+    pass
+
 settings = get_settings()
 
 

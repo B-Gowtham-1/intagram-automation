@@ -1,4 +1,5 @@
 import type { ImageItem } from '../types';
+import heic2any from 'heic2any';
 
 export function formatBytes(bytes: number, decimals = 1): string {
   if (bytes === 0) return '0 Bytes';
@@ -50,9 +51,10 @@ export function calculateAspectRatio(width: number, height: number): { ratioStr:
   return { ratioStr: `${ratio.toFixed(2)}:1`, isNineSixteen: false };
 }
 
-export async function processSelectedFile(file: File, index: number): Promise<ImageItem> {
+export async function processSelectedFile(initialFile: File, index: number): Promise<ImageItem> {
   const id = `media_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
-  const previewUrl = URL.createObjectURL(file);
+  let file = initialFile;
+  let previewUrl = URL.createObjectURL(file);
 
   const isVideo = file.type.startsWith('video/') || Boolean(file.name.match(/\.(mp4|mov|webm)$/i));
 
@@ -169,6 +171,28 @@ export async function processSelectedFile(file: File, index: number): Promise<Im
   }
 
   // 2. IMAGE HANDLING
+  const isHeic =
+    file.type === 'image/heic' ||
+    file.type === 'image/heif' ||
+    Boolean(file.name.match(/\.(heic|heif)$/i));
+
+  if (isHeic) {
+    try {
+      const convertedBlob = await heic2any({
+        blob: file,
+        toType: 'image/jpeg',
+        quality: 0.95,
+      });
+      const blob = Array.isArray(convertedBlob) ? convertedBlob[0] : convertedBlob;
+      URL.revokeObjectURL(previewUrl);
+      const newName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
+      file = new File([blob], newName, { type: 'image/jpeg', lastModified: Date.now() });
+      previewUrl = URL.createObjectURL(file);
+    } catch (err) {
+      console.warn('Browser HEIC to JPEG conversion failed, passing original to backend:', err);
+    }
+  }
+
   const validImageMimes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
   const isImageValid = validImageMimes.includes(file.type) || Boolean(file.name.match(/\.(jpe?g|png|webp|heic|heif)$/i));
 

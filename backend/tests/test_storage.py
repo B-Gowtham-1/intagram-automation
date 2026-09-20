@@ -70,6 +70,64 @@ def test_supabase_upload_mocked():
         httpx.Client = original_client
 
 
+def test_ensure_jpeg_if_heic():
+    import io
+    from PIL import Image
+    # Create test HEIF image
+    img = Image.new("RGB", (200, 200), color=(10, 20, 30))
+    buf = io.BytesIO()
+    img.save(buf, format="HEIF")
+    heic_bytes = buf.getvalue()
+
+    jpeg_bytes, new_path, mime = StorageProvider.ensure_jpeg_if_heic(
+        heic_bytes, "uploads/pic.heic", "image/heic"
+    )
+    assert new_path == "uploads/pic.jpg"
+    assert mime == "image/jpeg"
+    with Image.open(io.BytesIO(jpeg_bytes)) as out_img:
+        assert out_img.format == "JPEG"
+
+
+def test_supabase_upload_converts_heic_to_jpeg():
+    import io
+    from PIL import Image
+    img = Image.new("RGB", (100, 100), color="green")
+    buf = io.BytesIO()
+    img.save(buf, format="HEIF")
+    heic_bytes = buf.getvalue()
+
+    received_headers = {}
+    received_url = ""
+    received_content = b""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal received_headers, received_url, received_content
+        received_headers = dict(request.headers)
+        received_url = str(request.url)
+        received_content = request.content
+        return httpx.Response(200, json={"Key": "instagram-carousels/instagram/jobs/test/001.jpg"})
+
+    provider = SupabaseStorageProvider(
+        supabase_url="https://xyzproject.supabase.co",
+        service_role_key="dummy-key",
+        bucket_name="instagram-carousels",
+    )
+
+    transport = httpx.MockTransport(handler)
+    original_client = httpx.Client
+
+    try:
+        httpx.Client = lambda **kwargs: original_client(transport=transport, **kwargs)
+        url = provider.upload(heic_bytes, "instagram/jobs/test/001.heic", "image/heic")
+        assert url.endswith("001.jpg")
+        assert received_headers["content-type"] == "image/jpeg"
+        assert "001.jpg" in received_url
+        with Image.open(io.BytesIO(received_content)) as out_img:
+            assert out_img.format == "JPEG"
+    finally:
+        httpx.Client = original_client
+
+
 # --- 4. URL Accessibility Verification (Section 17) ---
 
 def test_url_accessibility_rejects_non_https():

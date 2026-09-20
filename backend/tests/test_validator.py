@@ -63,6 +63,17 @@ def test_validator_rejects_unsupported_extension():
     assert "Unsupported file extension" in result.error_message
 
 
+def test_validator_accepts_valid_heic_image():
+    img_bytes = create_in_memory_image(1080, 1920, "HEIF")
+    result = ImageValidator.validate(img_bytes, "photo.heic")
+    assert result.is_valid is True
+    assert result.width == 1080
+    assert result.height == 1920
+    assert result.format == "HEIF"
+    assert result.is_nine_sixteen is True
+    assert result.error_message is None
+
+
 # --- Unit Tests: Ordering ---
 
 def test_ordering_validator_valid_sequence():
@@ -140,3 +151,16 @@ def test_api_validate_images_endpoint():
     assert data[2]["filename"] == "photo3.jpg"
     assert data[2]["is_valid"] is False
     assert "Unable to read image" in data[2]["error_message"]
+
+
+def test_api_validate_heic_image():
+    img_heic = create_in_memory_image(1080, 1920, "HEIF")
+    files = [("files", ("iphone_pic.heic", img_heic, "image/heic"))]
+    response = client.post("/api/images/validate", files=files)
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) == 1
+    assert data[0]["filename"] == "iphone_pic.heic"
+    assert data[0]["is_valid"] is True
+    assert data[0]["format"] == "HEIF"
+    assert data[0]["is_nine_sixteen"] is True
