@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import type { ImageItem } from '../types';
 import { ImageCard } from './ImageCard';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
@@ -12,7 +12,7 @@ interface ImageGridProps {
   onClearAll?: () => void;
 }
 
-export const ImageGrid: React.FC<ImageGridProps> = ({
+export const ImageGrid: React.FC<ImageGridProps> = memo(({
   images,
   onRemove,
   onMove,
@@ -119,4 +119,6 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
       </div>
     </div>
   );
-};
+});
+
+ImageGrid.displayName = 'ImageGrid';
