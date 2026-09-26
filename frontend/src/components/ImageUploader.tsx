@@ -23,12 +23,11 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
     setIsProcessing(true);
     const files = Array.from(fileList);
-    const results: ImageItem[] = [];
 
-    for (let i = 0; i < files.length; i++) {
-      const item = await processSelectedFile(files[i], currentCount + i);
-      results.push(item);
-    }
+    // Process all files concurrently for significantly faster batch uploads
+    const results = await Promise.all(
+      files.map((file, i) => processSelectedFile(file, currentCount + i))
+    );
 
     onImagesAdded(results);
     setIsProcessing(false);
