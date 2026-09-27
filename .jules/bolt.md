@@ -1,0 +1,3 @@
+## 2024-05-22 - Prevent Unnecessary Re-renders from Parallel State Changes
+**Learning:** If a parent component holds state for multiple interactive elements (like a text input and a complex list of items), typing in the text input can cause the complex list to re-render unnecessarily on every keystroke, leading to performance issues.
+**Action:** Use `React.memo` on the complex list component and wrap all callback functions passed to it from the parent in `useCallback` with empty dependency arrays (or appropriate dependencies) to keep their references stable across re-renders triggered by unrelated state changes.
