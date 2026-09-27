@@ -12,7 +12,7 @@ interface ImageGridProps {
   onClearAll?: () => void;
 }
 
-export const ImageGrid: React.FC<ImageGridProps> = ({
+export const ImageGrid: React.FC<ImageGridProps> = React.memo(({
   images,
   onRemove,
   onMove,
@@ -119,4 +119,4 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
       </div>
     </div>
   );
-};
+});
