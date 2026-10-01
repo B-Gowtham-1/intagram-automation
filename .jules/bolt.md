@@ -1,0 +1,1 @@
+## 2026-10-01 - Optimize File Upload Processing\n**Learning:** Image upload processing iterates sequentially through files and processes them one by one causing O(N) wait times for users dragging multiple files.\n**Action:** Use Promise.all() for concurrent file processing, keeping file order.
