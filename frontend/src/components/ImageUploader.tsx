@@ -23,12 +23,13 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
     setIsProcessing(true);
     const files = Array.from(fileList);
-    const results: ImageItem[] = [];
 
-    for (let i = 0; i < files.length; i++) {
-      const item = await processSelectedFile(files[i], currentCount + i);
-      results.push(item);
-    }
+    // ⚡ Bolt Performance Optimization:
+    // What: Process image files concurrently using Promise.all instead of sequentially awaiting each one in a for-loop.
+    // Why: Image processing involves I/O (file reading), EXIF parsing, and potentially heavy HEIC->JPEG conversion. Sequential processing blocks the pipeline unnecessarily.
+    // Impact: Reduces processing time of N images from O(N) to roughly O(1) by utilizing parallel execution, making bulk uploads significantly faster.
+    const promises = files.map((file, i) => processSelectedFile(file, currentCount + i));
+    const results = await Promise.all(promises);
 
     onImagesAdded(results);
     setIsProcessing(false);
