@@ -1,0 +1,3 @@
+## 2026-10-05 - [Unnecessary Re-renders on Form State Updates]
+**Learning:** In the React frontend, complex components like `ImageGrid` were re-rendering unnecessarily whenever parent state (like caption or hashtags in `Home.tsx`) changed. Since these state changes don't affect the images, this caused a measurable performance degradation, especially as the number of images increased.
+**Action:** Used `React.memo` on the `ImageGrid` component and wrapped its event handler props (`handleRemoveImage`, `handleMoveImage`, etc.) in `useCallback` to ensure referential stability and prevent unnecessary downstream re-renders.

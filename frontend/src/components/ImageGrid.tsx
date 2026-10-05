@@ -12,7 +12,10 @@ interface ImageGridProps {
   onClearAll?: () => void;
 }
 
-export const ImageGrid: React.FC<ImageGridProps> = ({
+// ⚡ Bolt: Performance Improvement
+// Wrap ImageGrid in React.memo so it only re-renders when the image array
+// or memoized handler props change, saving expensive re-renders of the grid.
+export const ImageGrid: React.FC<ImageGridProps> = React.memo(({
   images,
   onRemove,
   onMove,
@@ -119,4 +122,4 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
       </div>
     </div>
   );
-};
+});
