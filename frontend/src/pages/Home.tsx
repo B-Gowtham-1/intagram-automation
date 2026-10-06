@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AccountSelector } from '../components/AccountSelector';
 import { ImageUploader } from '../components/ImageUploader';
 import { ImageGrid } from '../components/ImageGrid';
@@ -69,38 +69,48 @@ export const Home: React.FC = () => {
       });
   }, []);
 
-  const handleImagesAdded = (newItems: ImageItem[]) => {
+  // ⚡ Bolt: Memoized handler to prevent ImageGrid re-renders
+  const handleImagesAdded = useCallback((newItems: ImageItem[]) => {
     setPublishResult(null);
     setPublishError(null);
     setImages((prev) => {
       const combined = [...prev, ...newItems];
       return combined.map((item, idx) => ({ ...item, orderIndex: idx }));
     });
-  };
+  }, []);
 
-  const handleRemoveImage = (id: string) => {
+  // ⚡ Bolt: Memoized handler to prevent ImageGrid re-renders
+  const handleRemoveImage = useCallback((id: string) => {
     setPublishResult(null);
     setImages((prev) => {
       const target = prev.find((img) => img.id === id);
+      // We revoke outside of the state setter to keep it pure
       if (target?.previewUrl) {
-        URL.revokeObjectURL(target.previewUrl);
+        setTimeout(() => URL.revokeObjectURL(target.previewUrl), 0);
       }
       return prev
         .filter((img) => img.id !== id)
         .map((item, idx) => ({ ...item, orderIndex: idx }));
     });
-  };
+  }, []);
 
-  const handleClearAll = () => {
-    images.forEach((img) => {
-      if (img.previewUrl) URL.revokeObjectURL(img.previewUrl);
+  // ⚡ Bolt: Memoized handler to prevent ImageGrid re-renders
+  const handleClearAll = useCallback(() => {
+    setImages((prevImages) => {
+      // We revoke outside of the state setter to keep it pure
+      setTimeout(() => {
+        prevImages.forEach((img) => {
+          if (img.previewUrl) URL.revokeObjectURL(img.previewUrl);
+        });
+      }, 0);
+      return [];
     });
-    setImages([]);
     setPublishResult(null);
     setPublishError(null);
-  };
+  }, []);
 
-  const handleMoveImage = (index: number, direction: 'up' | 'down') => {
+  // ⚡ Bolt: Memoized handler to prevent ImageGrid re-renders
+  const handleMoveImage = useCallback((index: number, direction: 'up' | 'down') => {
     setImages((prev) => {
       const nextIndex = direction === 'up' ? index - 1 : index + 1;
       if (nextIndex < 0 || nextIndex >= prev.length) return prev;
@@ -109,28 +119,31 @@ export const Home: React.FC = () => {
       updated.splice(nextIndex, 0, moved);
       return updated.map((item, idx) => ({ ...item, orderIndex: idx }));
     });
-  };
+  }, []);
 
-  const handleReorder = (startIndex: number, endIndex: number) => {
+  // ⚡ Bolt: Memoized handler to prevent ImageGrid re-renders
+  const handleReorder = useCallback((startIndex: number, endIndex: number) => {
     setImages((prev) => {
       const updated = [...prev];
       const [moved] = updated.splice(startIndex, 1);
       updated.splice(endIndex, 0, moved);
       return updated.map((item, idx) => ({ ...item, orderIndex: idx }));
     });
-  };
+  }, []);
 
-  const handleEditImage = (item: ImageItem) => {
+  // ⚡ Bolt: Memoized handler to prevent ImageGrid re-renders
+  const handleEditImage = useCallback((item: ImageItem) => {
     setEditingItem(item);
-  };
+  }, []);
 
-  const handleSaveEditedImage = (updatedItem: ImageItem) => {
+  // ⚡ Bolt: Memoized handler to prevent ImageGrid re-renders
+  const handleSaveEditedImage = useCallback((updatedItem: ImageItem) => {
     setImages((prev) =>
       prev.map((img) => (img.id === updatedItem.id ? updatedItem : img))
     );
     setPublishResult(null);
     setPublishError(null);
-  };
+  }, []);
   const handlePublish = async () => {
     if (images.length < 2 || isPublishing) return;
 

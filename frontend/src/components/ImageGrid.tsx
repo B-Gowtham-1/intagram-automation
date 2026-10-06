@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useCallback } from 'react';
 import type { ImageItem } from '../types';
 import { ImageCard } from './ImageCard';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
@@ -12,7 +12,7 @@ interface ImageGridProps {
   onClearAll?: () => void;
 }
 
-export const ImageGrid: React.FC<ImageGridProps> = ({
+export const ImageGrid: React.FC<ImageGridProps> = React.memo(({
   images,
   onRemove,
   onMove,
@@ -20,7 +20,25 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
   onEdit,
   onClearAll,
 }) => {
-  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  const draggedIdxRef = useRef<number | null>(null);
+
+  const handleDragStart = useCallback((e: React.DragEvent, index: number) => {
+    draggedIdxRef.current = index;
+    e.dataTransfer.effectAllowed = 'move';
+    // Transparent or default drag image
+  }, []);
+
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    if (draggedIdxRef.current === null || draggedIdxRef.current === targetIndex) return;
+    onReorder(draggedIdxRef.current, targetIndex);
+    draggedIdxRef.current = null;
+  }, [onReorder]);
 
   if (images.length === 0) {
     return null;
@@ -29,24 +47,6 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
   const validCount = images.filter((img) => img.isValid).length;
   const hasInvalid = images.some((img) => !img.isValid);
   const isCountValid = images.length >= 2 && images.length <= 10;
-
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIdx(index);
-    e.dataTransfer.effectAllowed = 'move';
-    // Transparent or default drag image
-  };
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-  };
-
-  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
-    e.preventDefault();
-    if (draggedIdx === null || draggedIdx === targetIndex) return;
-    onReorder(draggedIdx, targetIndex);
-    setDraggedIdx(null);
-  };
 
   return (
     <div className="space-y-4">
@@ -119,4 +119,4 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
       </div>
     </div>
   );
-};
+});
