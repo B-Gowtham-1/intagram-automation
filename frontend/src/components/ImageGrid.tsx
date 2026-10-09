@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef } from 'react';
 import type { ImageItem } from '../types';
 import { ImageCard } from './ImageCard';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
@@ -20,7 +20,8 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
   onEdit,
   onClearAll,
 }) => {
-  const [draggedIdx, setDraggedIdx] = useState<number | null>(null);
+  // Use a ref instead of state to avoid unnecessary re-renders of the whole grid during drag operations
+  const draggedIdxRef = useRef<number | null>(null);
 
   if (images.length === 0) {
     return null;
@@ -31,7 +32,7 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
   const isCountValid = images.length >= 2 && images.length <= 10;
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIdx(index);
+    draggedIdxRef.current = index;
     e.dataTransfer.effectAllowed = 'move';
     // Transparent or default drag image
   };
@@ -43,9 +44,9 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
 
   const handleDrop = (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
-    if (draggedIdx === null || draggedIdx === targetIndex) return;
-    onReorder(draggedIdx, targetIndex);
-    setDraggedIdx(null);
+    if (draggedIdxRef.current === null || draggedIdxRef.current === targetIndex) return;
+    onReorder(draggedIdxRef.current, targetIndex);
+    draggedIdxRef.current = null;
   };
 
   return (
