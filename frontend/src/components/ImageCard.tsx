@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import type { ImageItem } from '../types';
 import { formatBytes } from '../utils/image';
 import {
@@ -26,7 +26,8 @@ interface ImageCardProps {
   onDrop?: (e: React.DragEvent, index: number) => void;
 }
 
-export const ImageCard: React.FC<ImageCardProps> = ({
+// Memoize ImageCard to prevent unnecessary re-renders during interactions with other cards in the grid
+export const ImageCard: React.FC<ImageCardProps> = memo(({
   image,
   index,
   total,
@@ -215,4 +216,4 @@ export const ImageCard: React.FC<ImageCardProps> = ({
       </div>
     </div>
   );
-};
+});
