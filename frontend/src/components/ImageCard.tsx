@@ -26,7 +26,7 @@ interface ImageCardProps {
   onDrop?: (e: React.DragEvent, index: number) => void;
 }
 
-export const ImageCard: React.FC<ImageCardProps> = ({
+export const ImageCard: React.FC<ImageCardProps> = React.memo(({
   image,
   index,
   total,
@@ -215,4 +215,4 @@ export const ImageCard: React.FC<ImageCardProps> = ({
       </div>
     </div>
   );
-};
+});
