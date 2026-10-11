@@ -78,7 +78,7 @@ export const Home: React.FC = () => {
     });
   };
 
-  const handleRemoveImage = (id: string) => {
+  const handleRemoveImage = React.useCallback((id: string) => {
     setPublishResult(null);
     setImages((prev) => {
       const target = prev.find((img) => img.id === id);
@@ -89,18 +89,19 @@ export const Home: React.FC = () => {
         .filter((img) => img.id !== id)
         .map((item, idx) => ({ ...item, orderIndex: idx }));
     });
-  };
+  }, []);
 
-  const handleClearAll = () => {
+  const handleClearAll = React.useCallback(() => {
     images.forEach((img) => {
       if (img.previewUrl) URL.revokeObjectURL(img.previewUrl);
     });
     setImages([]);
     setPublishResult(null);
     setPublishError(null);
-  };
+  }, [images]);
+  // OPTIMIZATION: Memoize handler to prevent ImageGrid re-renders when orthogonal state (like caption) changes.
 
-  const handleMoveImage = (index: number, direction: 'up' | 'down') => {
+  const handleMoveImage = React.useCallback((index: number, direction: 'up' | 'down') => {
     setImages((prev) => {
       const nextIndex = direction === 'up' ? index - 1 : index + 1;
       if (nextIndex < 0 || nextIndex >= prev.length) return prev;
@@ -109,20 +110,22 @@ export const Home: React.FC = () => {
       updated.splice(nextIndex, 0, moved);
       return updated.map((item, idx) => ({ ...item, orderIndex: idx }));
     });
-  };
+  }, []);
+  // OPTIMIZATION: Memoize handler to prevent ImageGrid re-renders when orthogonal state (like caption) changes.
 
-  const handleReorder = (startIndex: number, endIndex: number) => {
+  const handleReorder = React.useCallback((startIndex: number, endIndex: number) => {
     setImages((prev) => {
       const updated = [...prev];
       const [moved] = updated.splice(startIndex, 1);
       updated.splice(endIndex, 0, moved);
       return updated.map((item, idx) => ({ ...item, orderIndex: idx }));
     });
-  };
+  }, []);
+  // OPTIMIZATION: Memoize handler to prevent ImageGrid re-renders when orthogonal state (like caption) changes.
 
-  const handleEditImage = (item: ImageItem) => {
+  const handleEditImage = React.useCallback((item: ImageItem) => {
     setEditingItem(item);
-  };
+  }, []);
 
   const handleSaveEditedImage = (updatedItem: ImageItem) => {
     setImages((prev) =>

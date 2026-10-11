@@ -12,7 +12,7 @@ interface ImageGridProps {
   onClearAll?: () => void;
 }
 
-export const ImageGrid: React.FC<ImageGridProps> = ({
+export const ImageGrid: React.FC<ImageGridProps> = React.memo(({
   images,
   onRemove,
   onMove,
@@ -29,24 +29,27 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
   const validCount = images.filter((img) => img.isValid).length;
   const hasInvalid = images.some((img) => !img.isValid);
   const isCountValid = images.length >= 2 && images.length <= 10;
+  // OPTIMIZATION: Memoize internal drag handlers to prevent unneeded re-renders.
 
-  const handleDragStart = (e: React.DragEvent, index: number) => {
+  const handleDragStart = React.useCallback((e: React.DragEvent, index: number) => {
     setDraggedIdx(index);
     e.dataTransfer.effectAllowed = 'move';
     // Transparent or default drag image
-  };
+  }, []);
+  // OPTIMIZATION: Memoize internal drag handlers to prevent unneeded re-renders.
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = React.useCallback((e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-  };
+  }, []);
+  // OPTIMIZATION: Memoize internal drag handlers to prevent unneeded re-renders.
 
-  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+  const handleDrop = React.useCallback((e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
     if (draggedIdx === null || draggedIdx === targetIndex) return;
     onReorder(draggedIdx, targetIndex);
     setDraggedIdx(null);
-  };
+  }, [draggedIdx, onReorder]);
 
   return (
     <div className="space-y-4">
@@ -119,4 +122,4 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
       </div>
     </div>
   );
-};
+});
