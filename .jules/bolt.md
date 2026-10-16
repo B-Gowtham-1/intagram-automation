@@ -1,0 +1,3 @@
+## 2024-05-24 - React.memo Optimization Requires Stable Props
+**Learning:** Wrapping a component in `React.memo` to prevent unnecessary re-renders only works effectively if all props passed to the component are referentially stable. If callback props are re-created on every parent render, the memoized component will still re-render, adding overhead without benefit.
+**Action:** When applying `React.memo`, also use `React.useCallback` for all event handler props passed from the parent to ensure referential stability. Be careful with side effects like `URL.revokeObjectURL` in functional state updaters, as they must be pure.
