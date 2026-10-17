@@ -26,7 +26,8 @@ interface ImageCardProps {
   onDrop?: (e: React.DragEvent, index: number) => void;
 }
 
-export const ImageCard: React.FC<ImageCardProps> = ({
+// Added React.memo to prevent unnecessary re-renders of list items during drag/drop or other state updates in the parent component
+export const ImageCard = React.memo<ImageCardProps>(({
   image,
   index,
   total,
@@ -215,4 +216,4 @@ export const ImageCard: React.FC<ImageCardProps> = ({
       </div>
     </div>
   );
-};
+});
