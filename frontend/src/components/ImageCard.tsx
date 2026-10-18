@@ -26,7 +26,10 @@ interface ImageCardProps {
   onDrop?: (e: React.DragEvent, index: number) => void;
 }
 
-export const ImageCard: React.FC<ImageCardProps> = ({
+// ⚡ Bolt Performance Optimization:
+// Wrapped ImageCard in React.memo to prevent unnecessary re-renders when other images
+// in the ImageGrid are modified or when grid state changes.
+export const ImageCard: React.FC<ImageCardProps> = React.memo(({
   image,
   index,
   total,
@@ -215,4 +218,4 @@ export const ImageCard: React.FC<ImageCardProps> = ({
       </div>
     </div>
   );
-};
+});
