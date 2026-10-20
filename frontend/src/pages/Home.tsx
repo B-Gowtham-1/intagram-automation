@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AccountSelector } from '../components/AccountSelector';
 import { ImageUploader } from '../components/ImageUploader';
 import { ImageGrid } from '../components/ImageGrid';
@@ -69,16 +69,17 @@ export const Home: React.FC = () => {
       });
   }, []);
 
-  const handleImagesAdded = (newItems: ImageItem[]) => {
+  // ⚡ BOLT OPTIMIZATION: Memoize image operations to prevent re-renders of ImageGrid and ImageCards
+  const handleImagesAdded = useCallback((newItems: ImageItem[]) => {
     setPublishResult(null);
     setPublishError(null);
     setImages((prev) => {
       const combined = [...prev, ...newItems];
       return combined.map((item, idx) => ({ ...item, orderIndex: idx }));
     });
-  };
+  }, []);
 
-  const handleRemoveImage = (id: string) => {
+  const handleRemoveImage = useCallback((id: string) => {
     setPublishResult(null);
     setImages((prev) => {
       const target = prev.find((img) => img.id === id);
@@ -89,18 +90,20 @@ export const Home: React.FC = () => {
         .filter((img) => img.id !== id)
         .map((item, idx) => ({ ...item, orderIndex: idx }));
     });
-  };
+  }, []);
 
-  const handleClearAll = () => {
-    images.forEach((img) => {
-      if (img.previewUrl) URL.revokeObjectURL(img.previewUrl);
+  const handleClearAll = useCallback(() => {
+    setImages((prev) => {
+        prev.forEach((img) => {
+          if (img.previewUrl) URL.revokeObjectURL(img.previewUrl);
+        });
+        return [];
     });
-    setImages([]);
     setPublishResult(null);
     setPublishError(null);
-  };
+  }, []);
 
-  const handleMoveImage = (index: number, direction: 'up' | 'down') => {
+  const handleMoveImage = useCallback((index: number, direction: 'up' | 'down') => {
     setImages((prev) => {
       const nextIndex = direction === 'up' ? index - 1 : index + 1;
       if (nextIndex < 0 || nextIndex >= prev.length) return prev;
@@ -109,28 +112,28 @@ export const Home: React.FC = () => {
       updated.splice(nextIndex, 0, moved);
       return updated.map((item, idx) => ({ ...item, orderIndex: idx }));
     });
-  };
+  }, []);
 
-  const handleReorder = (startIndex: number, endIndex: number) => {
+  const handleReorder = useCallback((startIndex: number, endIndex: number) => {
     setImages((prev) => {
       const updated = [...prev];
       const [moved] = updated.splice(startIndex, 1);
       updated.splice(endIndex, 0, moved);
       return updated.map((item, idx) => ({ ...item, orderIndex: idx }));
     });
-  };
+  }, []);
 
-  const handleEditImage = (item: ImageItem) => {
+  const handleEditImage = useCallback((item: ImageItem) => {
     setEditingItem(item);
-  };
+  }, []);
 
-  const handleSaveEditedImage = (updatedItem: ImageItem) => {
+  const handleSaveEditedImage = useCallback((updatedItem: ImageItem) => {
     setImages((prev) =>
       prev.map((img) => (img.id === updatedItem.id ? updatedItem : img))
     );
     setPublishResult(null);
     setPublishError(null);
-  };
+  }, []);
   const handlePublish = async () => {
     if (images.length < 2 || isPublishing) return;
 
