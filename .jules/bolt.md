@@ -1,0 +1,4 @@
+
+## 2023-10-23 - [React.memo and useCallback with lists]
+**Learning:** Using `React.memo` on list items (like `ImageCard`) isn't effective if the drag state (e.g. `draggedIdx`) is maintained via `useState` in the parent grid (`ImageGrid`), as updating the state will re-render the parent and pass a newly created closure to all children anyway unless callbacks are correctly memoized without relying on volatile dependencies. Using a `useRef` for transient state like `draggedIdx` avoids triggering parent re-renders and lets `React.memo` work correctly. Also, functional state updates (`setImages(prev => ...)`) are better to keep callback dependency arrays empty.
+**Action:** Always prefer `useRef` for transient interactive state (like drag operations) that doesn't need to trigger a full parent re-render, and use functional state updates in `useCallback` when optimizing list item callbacks.
