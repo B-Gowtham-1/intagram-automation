@@ -26,7 +26,8 @@ interface ImageCardProps {
   onDrop?: (e: React.DragEvent, index: number) => void;
 }
 
-export const ImageCard: React.FC<ImageCardProps> = ({
+// ⚡ Bolt: Wrapped ImageCard in React.memo to prevent re-rendering all cards when one changes
+export const ImageCard: React.FC<ImageCardProps> = React.memo(({
   image,
   index,
   total,
@@ -215,4 +216,4 @@ export const ImageCard: React.FC<ImageCardProps> = ({
       </div>
     </div>
   );
-};
+});
