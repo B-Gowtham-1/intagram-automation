@@ -26,7 +26,10 @@ interface ImageCardProps {
   onDrop?: (e: React.DragEvent, index: number) => void;
 }
 
-export const ImageCard: React.FC<ImageCardProps> = ({
+// ⚡ Bolt Optimization: Memoize ImageCard to prevent re-renders when other cards in the grid update.
+// Why: ImageCard is a complex component containing images, SVG icons, and complex DOM elements. When typing in CaptionEditor, or when dragging/reordering, all untouched ImageCards used to re-render.
+// Impact: Significantly reduces React render time per keystroke or grid modification.
+export const ImageCard: React.FC<ImageCardProps> = React.memo(({
   image,
   index,
   total,
@@ -215,4 +218,4 @@ export const ImageCard: React.FC<ImageCardProps> = ({
       </div>
     </div>
   );
-};
+});
