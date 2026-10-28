@@ -10,6 +10,7 @@ from backend.app.api.images import router as images_router
 from backend.app.api.jobs import router as jobs_router
 from backend.app.api.accounts import router as accounts_router
 from backend.app.api.auth import router as auth_router
+from backend.app.api.facebook import router as facebook_router
 from backend.app.database.database import engine, Base, run_migrations
 import backend.app.database.models  # Ensure models are loaded
 
@@ -30,6 +31,7 @@ async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     run_migrations(engine)
     logger.info("Database tables and migrations initialized successfully.")
+
     yield
     logger.info("Shutting down Instagram Carousel Automation Agent")
 
@@ -56,7 +58,13 @@ app.include_router(images_router)
 app.include_router(jobs_router)
 app.include_router(accounts_router)
 app.include_router(auth_router)
+app.include_router(facebook_router)
 
+
+# Mount local storage directory for offline media preview
+storage_dir = Path(__file__).resolve().parent.parent.parent / "data" / "storage"
+storage_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/storage", StaticFiles(directory=str(storage_dir)), name="local_storage")
 
 # Mount built frontend if dist exists (enables all-in-one deployment on Render)
 dist_dir = Path(__file__).resolve().parent.parent.parent / "frontend" / "dist"

@@ -5,6 +5,7 @@ import type { JobStatus } from '../types';
 interface PublishButtonProps {
   status?: JobStatus;
   stageText?: string | null;
+  buttonLabel?: string;
   isLoading?: boolean;
   isSuccess?: boolean;
   isError?: boolean;
@@ -14,6 +15,7 @@ interface PublishButtonProps {
 
 export const PublishButton: React.FC<PublishButtonProps> = ({
   stageText,
+  buttonLabel,
   isLoading = false,
   isSuccess = false,
   isError = false,
@@ -53,9 +55,10 @@ export const PublishButton: React.FC<PublishButtonProps> = ({
       ) : (
         <>
           <Send className="w-4 h-4 stroke-[2.5]" />
-          <span>POST ON INSTA</span>
+          <span>{buttonLabel || 'POST ON INSTA'}</span>
         </>
       )}
     </button>
   );
 };
+

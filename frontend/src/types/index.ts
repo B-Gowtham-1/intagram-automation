@@ -72,25 +72,31 @@ export interface AccountItem {
   has_webhook: boolean;
 }
 
+export type PublishProvider = 'make';
+
 export interface JobResponse {
   job_id: string;
   status: JobStatus;
-  is_duplicate: boolean;
+  is_duplicate?: boolean;
   account_id?: string;
   account_handle?: string;
   caption?: string | null;
   hashtags?: string | null;
   final_caption?: string | null;
   image_count: number;
+  make_status?: string | null;
+  make_execution_id?: string | null;
   instagram_post_id?: string | null;
   error_message?: string | null;
   created_at?: string | null;
+  published_at?: string | null;
   images: JobImageResponse[];
 }
 
 export interface PublishResponse {
   job_id: string;
   status: JobStatus;
+  provider?: PublishProvider;
   account_id?: string;
   account_handle?: string;
   instagram_post_id?: string | null;
@@ -98,3 +104,4 @@ export interface PublishResponse {
   published_at?: string | null;
   message: string;
 }
+

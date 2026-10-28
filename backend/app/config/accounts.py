@@ -23,15 +23,17 @@ ACCOUNT_WEBHOOK_DEFAULTS = {
     "account_1": "https://hook.eu1.make.com/v7bjry5eb52oo845g7v3l2vy1iijeoqw",  # nature.art
     "account_2": "https://hook.eu1.make.com/mno7p6gaegf9yvqrakh00fu1r7ab8d3g",  # frames of nature
     "account_3": "https://hook.eu1.make.com/7lytlgeob24z2l2ws53b56wphjpifj9v",  # Frames of Movies
+    "account_4": "https://hook.eu1.make.com/0699nq6hfspgylfvaqy5cib763nsn75a",  # axthxtic_u
 }
 
 
 def get_configured_accounts() -> List[AccountConfig]:
     """
-    Returns the list of 3 Instagram accounts with embedded webhook URLs:
+    Returns the list of configured Instagram accounts with embedded webhook URLs:
     1. nature.art
     2. frames of nature
     3. frames of movies
+    4. axthxtic_u (@axthxtic_u)
     """
     settings = get_settings()
 
@@ -39,6 +41,7 @@ def get_configured_accounts() -> List[AccountConfig]:
     url_1 = getattr(settings, "MAKE_API_URL_ACCOUNT_1", "") or ACCOUNT_WEBHOOK_DEFAULTS["account_1"]
     url_2 = getattr(settings, "MAKE_API_URL_ACCOUNT_2", "") or ACCOUNT_WEBHOOK_DEFAULTS["account_2"]
     url_3 = getattr(settings, "MAKE_API_URL_ACCOUNT_3", "") or ACCOUNT_WEBHOOK_DEFAULTS["account_3"]
+    url_4 = getattr(settings, "MAKE_API_URL_ACCOUNT_4", "") or ACCOUNT_WEBHOOK_DEFAULTS["account_4"]
 
     return [
         AccountConfig(
@@ -61,6 +64,13 @@ def get_configured_accounts() -> List[AccountConfig]:
             handle="@framesofmovies",
             description="Cinematic film stills and movie scene frames",
             webhook_url=_clean_url(url_3),
+        ),
+        AccountConfig(
+            id="account_4",
+            name="axthxtic_u",
+            handle="@axthxtic_u",
+            description="Aesthetic visuals, typography and creative showcases",
+            webhook_url=_clean_url(url_4),
         ),
     ]
 

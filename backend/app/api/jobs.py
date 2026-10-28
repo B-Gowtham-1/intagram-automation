@@ -1,6 +1,8 @@
 import json
+import httpx
 from typing import List, Optional
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException
+from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from backend.app.database.database import get_db
@@ -137,17 +139,73 @@ def get_job(job_id: str, db: Session = Depends(get_db)):
 
 
 from datetime import datetime, timezone
+from fastapi import Query
 from backend.app.publishing.factory import get_publishing_provider
 from backend.app.jobs.states import JobStatus
 
 
-@router.post("/{job_id}/publish")
-def publish_job(job_id: str, db: Session = Depends(get_db)):
+class TestWebhookRequest(BaseModel):
+    url: str
+
+
+@router.post("/test-webhook")
+def test_webhook(payload: TestWebhookRequest):
     """
-    Publishes a READY carousel job through Make.com to Instagram:
+    Tests connectivity to an n8n or Make.com webhook endpoint.
+    """
+    url = payload.url.strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="Webhook URL cannot be empty.")
+
+    try:
+        with httpx.Client(timeout=6.0) as client:
+            res = client.post(
+                url,
+                json={"ping": True, "source": "zenitsu_test"},
+                headers={"User-Agent": "Zenitsu-Test/1.0"},
+            )
+            is_ok = res.status_code in (200, 201, 202, 204)
+            return {
+                "success": is_ok,
+                "status_code": res.status_code,
+                "message": (
+                    f"✓ Webhook reached successfully! Responded with HTTP {res.status_code}."
+                    if is_ok
+                    else f"Webhook responded with HTTP {res.status_code}: {res.text[:100]}"
+                ),
+            }
+    except (httpx.ConnectError, httpx.NetworkError) as e:
+        return {
+            "success": False,
+            "status_code": 0,
+            "message": f"Connection refused to {url}. No active server is listening at this address.",
+        }
+    except httpx.TimeoutException:
+        return {
+            "success": False,
+            "status_code": 408,
+            "message": f"Connection to {url} timed out after 6 seconds.",
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "status_code": 500,
+            "message": f"Webhook test error: {str(e)}",
+        }
+
+
+@router.post("/{job_id}/publish")
+def publish_job(
+    job_id: str,
+    provider: str = Query("make", description="Publishing provider engine: 'make' or 'n8n'"),
+    custom_webhook_url: Optional[str] = Query(None, description="Optional custom webhook URL override"),
+    db: Session = Depends(get_db),
+):
+    """
+    Publishes a READY carousel job through Make.com or n8n to Instagram:
     1. Verifies the job exists and is in READY state.
     2. Updates status to PUBLISHING.
-    3. Dispatches to Make scenario.
+    3. Dispatches to selected workflow engine (Make or n8n).
     4. Upon verified confirmation, marks job as PUBLISHED.
     """
     job = JobRepository.get_job_by_id(db, job_id)
@@ -175,8 +233,12 @@ def publish_job(job_id: str, db: Session = Depends(get_db)):
     # 1. Update status to PUBLISHING
     JobRepository.update_job_status(db, job_id, JobStatus.PUBLISHING.value)
 
-    # 2. Call publishing provider scoped to job's target account
-    publisher = get_publishing_provider(account_id=getattr(job, "account_id", None))
+    # 2. Call publishing provider scoped to job's target account and chosen engine (Make vs n8n)
+    publisher = get_publishing_provider(
+        account_id=getattr(job, "account_id", None),
+        provider=provider,
+        custom_webhook_url=custom_webhook_url,
+    )
     result = publisher.publish_carousel(job)
 
     # 3. Interpret explicit publishing result
@@ -192,21 +254,21 @@ def publish_job(job_id: str, db: Session = Depends(get_db)):
             published_at=now,
         )
 
-        # Keep images stored in Supabase so Instagram's servers can reliably fetch the public URLs
         import logging
         logging.getLogger("hermes.jobs").info(
-            f"Carousel dispatched to Make/Instagram for job {job_id} ({getattr(job, 'account_id', 'account_1')}). Preserving storage URLs for Instagram ingestion."
+            f"Carousel dispatched to {provider.upper()}/Instagram for job {job_id} ({getattr(job, 'account_id', 'account_1')})."
         )
 
         return {
             "job_id": job.job_id,
             "status": "PUBLISHED",
+            "provider": provider,
             "account_id": getattr(job, "account_id", "account_1"),
             "account_handle": getattr(job, "account_handle", ""),
             "instagram_post_id": job.instagram_post_id,
             "make_execution_id": job.make_execution_id,
             "published_at": job.published_at.isoformat() if job.published_at else None,
-            "message": f"Carousel published successfully to Instagram ({getattr(job, 'account_handle', '')}).",
+            "message": f"Carousel published successfully to Instagram ({getattr(job, 'account_handle', '')}) via {provider.upper()}.",
         }
     else:
         job = JobRepository.update_job_status(
@@ -218,13 +280,13 @@ def publish_job(job_id: str, db: Session = Depends(get_db)):
         )
         raise HTTPException(
             status_code=502,
-            detail=result.error_message or "Instagram publishing failed.",
+            detail=result.error_message or f"Instagram publishing via {provider.upper()} failed.",
         )
 
 
 @router.get("")
-def list_jobs(limit: int = 20, db: Session = Depends(get_db)):
-    """Retrieve a list of recent carousel jobs."""
+def list_jobs(limit: int = 50, db: Session = Depends(get_db)):
+    """Retrieve a list of recent carousel jobs with complete media and caption metadata for Gallery."""
     jobs = JobRepository.list_jobs(db, limit=limit)
     return [
         {
@@ -232,11 +294,32 @@ def list_jobs(limit: int = 20, db: Session = Depends(get_db)):
             "status": j.status,
             "account_id": getattr(j, "account_id", "account_1"),
             "account_handle": getattr(j, "account_handle", ""),
+            "caption": j.caption,
+            "hashtags": j.hashtags,
+            "final_caption": j.final_caption,
             "image_count": j.image_count,
+            "make_status": j.make_status,
+            "make_execution_id": j.make_execution_id,
             "instagram_post_id": j.instagram_post_id,
+            "error_message": j.error_message,
             "created_at": j.created_at.isoformat() if j.created_at else None,
             "published_at": j.published_at.isoformat() if j.published_at else None,
+            "images": [
+                {
+                    "order_index": img.order_index,
+                    "original_filename": img.original_filename,
+                    "original_width": img.original_width,
+                    "original_height": img.original_height,
+                    "processed_width": img.processed_width,
+                    "processed_height": img.processed_height,
+                    "public_url": img.public_url,
+                    "media_type": getattr(img, "media_type", "IMAGE") or "IMAGE",
+                    "status": img.status,
+                }
+                for img in j.images
+            ],
         }
         for j in jobs
     ]
+
 

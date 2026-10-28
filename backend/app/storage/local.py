@@ -17,8 +17,8 @@ class LocalStorageProvider(StorageProvider):
         self.root.mkdir(parents=True, exist_ok=True)
 
     def _full_path(self, storage_path: str) -> Path:
-        clean = storage_path.lstrip("/").replace("/", "\\")
-        return self.root / clean
+        clean = storage_path.lstrip("/").replace("\\", "/")
+        return self.root / Path(clean)
 
     def upload(self, file_bytes: bytes, storage_path: str, content_type: str = "image/jpeg") -> str:
         file_bytes, storage_path, content_type = self.ensure_jpeg_if_heic(file_bytes, storage_path, content_type)
@@ -29,9 +29,11 @@ class LocalStorageProvider(StorageProvider):
         return self.get_public_url(storage_path)
 
     def get_public_url(self, storage_path: str) -> str:
-        # In mock/offline mode, return simulated HTTPS url
-        clean = storage_path.lstrip("/")
-        return f"https://mock-storage.local/{clean}"
+        clean = storage_path.lstrip("/").replace("\\", "/")
+        from backend.app.config.settings import get_settings
+        settings = get_settings()
+        base = settings.PUBLIC_BASE_URL.strip().rstrip("/") if settings.PUBLIC_BASE_URL else f"http://{settings.API_HOST}:{settings.API_PORT}"
+        return f"{base}/storage/{clean}"
 
     def exists(self, storage_path: str) -> bool:
         return self._full_path(storage_path).exists()

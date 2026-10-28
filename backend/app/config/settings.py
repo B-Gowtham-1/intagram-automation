@@ -53,6 +53,19 @@ class Settings(BaseSettings):
     MAKE_API_URL_ACCOUNT_1: str = "https://hook.eu1.make.com/v7bjry5eb52oo845g7v3l2vy1iijeoqw"  # nature.art
     MAKE_API_URL_ACCOUNT_2: str = "https://hook.eu1.make.com/mno7p6gaegf9yvqrakh00fu1r7ab8d3g"  # frames of nature
     MAKE_API_URL_ACCOUNT_3: str = "https://hook.eu1.make.com/7lytlgeob24z2l2ws53b56wphjpifj9v"  # Frames of Movies
+    MAKE_API_URL_ACCOUNT_4: str = ""  # axthxtic_u (@axthxtic_u)
+    PUBLIC_BASE_URL: str = ""  # Optional public tunnel / domain for local storage (e.g. ngrok / cloudflare tunnel)
+
+    # N8N Integration
+    N8N_WEBHOOK_URL: str = "http://localhost:5678/webhook/instagram-carousel"
+    N8N_WEBHOOK_URL_ACCOUNT_1: str = ""
+    N8N_WEBHOOK_URL_ACCOUNT_2: str = ""
+    N8N_WEBHOOK_URL_ACCOUNT_3: str = ""
+
+    # Meta / Facebook OAuth App Configuration
+    META_APP_ID: str = ""
+    META_APP_SECRET: str = ""
+    META_REDIRECT_URI: str = "http://127.0.0.1:8000/api/facebook/oauth/callback"
 
     # Image Processing Configuration (Phase D)
     TARGET_WIDTH: int = 1080

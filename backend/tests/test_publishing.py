@@ -161,3 +161,6 @@ def test_mock_publisher():
     assert result.success is True
     assert result.instagram_post_id.startswith("ig_test_")
     assert result.make_status == "PUBLISHED"
+
+
+

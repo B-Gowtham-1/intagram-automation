@@ -7,6 +7,7 @@ import { CarouselPreview } from '../components/CarouselPreview';
 import { PublishButton } from '../components/PublishButton';
 import { MediaEditorModal } from '../components/MediaEditorModal';
 import { PublicLinksModal } from '../components/PublicLinksModal';
+import { PostsGallery } from '../components/PostsGallery';
 import type { ImageItem, HealthResponse, PublishResponse, AccountItem } from '../types';
 import { getHealth, getAccounts, createJob, publishJob, uploadForPublicLinks, type PublicMediaLinkItem } from '../services/api';
 import {
@@ -16,9 +17,14 @@ import {
   RotateCcw,
   Link2,
   Loader2,
+  Zap,
+  Layers,
 } from 'lucide-react';
 
 export const Home: React.FC = () => {
+  // Navigation tab state: Studio (Make.com) vs Gallery
+  const [activeTab, setActiveTab] = useState<'make' | 'gallery'>('make');
+
   // Accounts state
   const [accounts, setAccounts] = useState<AccountItem[]>([
     { id: 'account_1', name: 'nature.art', handle: '@nature.art', description: 'Nature art and visual scenery carousels', has_webhook: true },
@@ -65,7 +71,7 @@ export const Home: React.FC = () => {
         }
       })
       .catch(() => {
-        // Fallback to initial hardcoded accounts
+        // Fallback to initial default accounts
       });
   }, []);
 
@@ -78,86 +84,70 @@ export const Home: React.FC = () => {
     });
   };
 
-  const handleRemoveImage = React.useCallback((id: string) => {
-    setPublishResult(null);
-    const target = images.find((img) => img.id === id);
-    if (target?.previewUrl) {
-      URL.revokeObjectURL(target.previewUrl);
-    }
-    setImages((prev) => prev
-      .filter((img) => img.id !== id)
-      .map((item, idx) => ({ ...item, orderIndex: idx }))
-    );
-  }, [images]);
+  const handleMove = (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= images.length) return;
+    const newItems = [...images];
+    const [moved] = newItems.splice(index, 1);
+    newItems.splice(targetIndex, 0, moved);
+    setImages(newItems.map((item, idx) => ({ ...item, orderIndex: idx })));
+  };
 
-  const handleClearAll = React.useCallback(() => {
-    // ⚡ Bolt: Using refs or accessing current state instead of putting side-effects in state updater
-    images.forEach((img) => {
-      if (img.previewUrl) URL.revokeObjectURL(img.previewUrl);
-    });
-    setImages([]);
-    setPublishResult(null);
-    setPublishError(null);
-  }, [images]);
+  const handleReorder = (startIndex: number, endIndex: number) => {
+    if (startIndex === endIndex) return;
+    const newItems = [...images];
+    const [removed] = newItems.splice(startIndex, 1);
+    newItems.splice(endIndex, 0, removed);
+    setImages(newItems.map((item, idx) => ({ ...item, orderIndex: idx })));
+  };
 
-  const handleMoveImage = React.useCallback((index: number, direction: 'up' | 'down') => {
-    setImages((prev) => {
-      const nextIndex = direction === 'up' ? index - 1 : index + 1;
-      if (nextIndex < 0 || nextIndex >= prev.length) return prev;
-      const updated = [...prev];
-      const [moved] = updated.splice(index, 1);
-      updated.splice(nextIndex, 0, moved);
-      return updated.map((item, idx) => ({ ...item, orderIndex: idx }));
-    });
-  }, []);
-
-  const handleReorder = React.useCallback((startIndex: number, endIndex: number) => {
-    setImages((prev) => {
-      const updated = [...prev];
-      const [moved] = updated.splice(startIndex, 1);
-      updated.splice(endIndex, 0, moved);
-      return updated.map((item, idx) => ({ ...item, orderIndex: idx }));
-    });
-  }, []);
-
-  const handleEditImage = React.useCallback((item: ImageItem) => {
-    setEditingItem(item);
-  }, []);
-
-  const handleSaveEditedImage = React.useCallback((updatedItem: ImageItem) => {
+  const handleRemove = (id: string) => {
     setImages((prev) =>
-      prev.map((img) => (img.id === updatedItem.id ? updatedItem : img))
+      prev.filter((item) => item.id !== id).map((item, idx) => ({ ...item, orderIndex: idx }))
     );
+  };
+
+  const handleClearAll = () => {
+    setImages([]);
+    setCaption('');
+    setHashtags('');
     setPublishResult(null);
     setPublishError(null);
-  }, []);
+    setStageText(null);
+  };
+
+  const handleOpenEditor = (item: ImageItem) => {
+    setEditingItem(item);
+  };
+
+  const handleSaveEditedImage = (updatedItem: ImageItem) => {
+    setImages((prev) =>
+      prev.map((item) => (item.id === updatedItem.id ? updatedItem : item))
+    );
+    setEditingItem(null);
+  };
+
+  const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
   const handlePublish = async () => {
-    if (images.length < 2 || isPublishing) return;
+    if (images.length < 2 || images.length > 10) return;
+    if (images.some((img) => !img.isValid)) return;
 
     setIsPublishing(true);
     setPublishError(null);
     setPublishResult(null);
 
-    const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
     try {
-      // Step 1: Preparing carousel
-      setStageText('Preparing carousel...');
+      // Step 1: Validating payload
+      setStageText('Validating 9:16 normalized images...');
       await sleep(350);
 
-      // Step 2: Validating images
-      setStageText('Validating images...');
-      await sleep(350);
-
-      // Step 3: Processing images to 9:16
-      setStageText('Processing images to 9:16...');
-      await sleep(350);
-
-      // Step 4: Uploading images
-      setStageText('Uploading images to storage...');
-      
+      // Step 2: Preparing files
+      setStageText('Bundling image sequence...');
       const files = images.map((img) => img.file);
       const orders = images.map((_, idx) => idx + 1);
+
+      // Media edits payload
       const mediaEdits = images.map((img, idx) => ({
         order_index: idx + 1,
         media_type: img.mediaType || 'IMAGE',
@@ -170,16 +160,16 @@ export const Home: React.FC = () => {
       // Create and prepare job on backend with selected target account and edits
       const job = await createJob(files, orders, caption, hashtags, selectedAccountId, mediaEdits);
 
-      // Step 5: Verifying image URLs
-      setStageText('Verifying image URLs...');
+      // Step 3: Verifying image URLs
+      setStageText('Verifying media URLs...');
       await sleep(400);
 
-      // Step 6: Publishing to Instagram via Make
-      setStageText('Publishing to Instagram...');
-      const result = await publishJob(job.job_id);
+      // Step 4: Publishing to Instagram via Make.com scenario bridge
+      setStageText('Dispatched to Make.com Instagram scenario...');
+      const result = await publishJob(job.job_id, 'make');
 
       setPublishResult(result);
-      setStageText('✓ Carousel published successfully');
+      setStageText('✓ Carousel published successfully via Make.com');
     } catch (err: any) {
       setPublishError(err.message || 'Publishing operation failed.');
       setStageText('✕ Publishing failed');
@@ -220,7 +210,7 @@ export const Home: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto px-3 sm:px-6 py-6 sm:py-10 space-y-6 sm:space-y-8 pb-28 sm:pb-12">
-      {/* Tactical Hero Banner matching gowthamlinux */}
+      {/* Tactical Hero Banner */}
       <div className="space-y-3 border-b border-[#1e2433] pb-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
@@ -239,7 +229,7 @@ export const Home: React.FC = () => {
                 MISSION ARCHIVE
               </h1>
               <p className="text-[11px] text-gray-400 font-mono mt-0.5">
-                CONTINUOUS 9:16 TRANSCODING &bull; MULTI-ACCOUNT WEBHOOKS &bull; CAROUSEL DEPLOYMENTS
+                CONTINUOUS 9:16 TRANSCODING &bull; MAKE.COM WEBHOOK ROUTING &bull; CAROUSEL DEPLOYMENTS
               </p>
             </div>
           </div>
@@ -263,243 +253,309 @@ export const Home: React.FC = () => {
         </div>
       </div>
 
-      {/* Published Confirmation Card */}
-      {publishResult && (
-        <div className="p-5 sm:p-6 rounded bg-[#06150f] border border-emerald-500/40 space-y-4 shadow-[0_0_20px_rgba(16,185,129,0.15)] animate-in fade-in slide-in-from-top-2">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40">
-                <CheckCircle className="w-6 h-6" />
+      {/* Primary Workflow Tabs Navigation */}
+      <div className="flex items-center gap-2 border-b border-[#1e2433] pb-1 overflow-x-auto font-mono scrollbar-none">
+        <button
+          type="button"
+          onClick={() => setActiveTab('make')}
+          className={`flex items-center gap-2 px-4 py-3 rounded-t-lg font-orbitron text-xs sm:text-sm font-bold uppercase tracking-wider transition ${
+            activeTab === 'make'
+              ? 'bg-[#0e121a] text-yellow-400 border-t-2 border-x border-[#1e2433] border-t-yellow-400 shadow-[0_-4px_15px_rgba(250,204,21,0.1)]'
+              : 'text-gray-400 hover:text-gray-200 hover:bg-[#090b10] border-t-2 border-transparent'
+          }`}
+        >
+          <Zap className="w-4 h-4 text-yellow-400" />
+          <span>MAKE.COM STUDIO</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('gallery')}
+          className={`flex items-center gap-2 px-4 py-3 rounded-t-lg font-orbitron text-xs sm:text-sm font-bold uppercase tracking-wider transition ${
+            activeTab === 'gallery'
+              ? 'bg-[#0e121a] text-emerald-400 border-t-2 border-x border-[#1e2433] border-t-emerald-400 shadow-[0_-4px_15px_rgba(16,185,129,0.1)]'
+              : 'text-gray-400 hover:text-gray-200 hover:bg-[#090b10] border-t-2 border-transparent'
+          }`}
+        >
+          <Layers className="w-4 h-4 text-emerald-400" />
+          <span>POSTS GALLERY</span>
+        </button>
+      </div>
+
+      {/* TAB 2: GALLERY VIEW */}
+      {activeTab === 'gallery' ? (
+        <PostsGallery onSwitchToStudio={() => setActiveTab('make')} />
+      ) : (
+        /* TAB 1: STUDIO (MAKE.COM) */
+        <div className="space-y-6 sm:space-y-8 animate-in fade-in duration-200">
+          {/* Published Confirmation Card */}
+          {publishResult && (
+            <div className="p-5 sm:p-6 rounded bg-[#06150f] border border-emerald-500/40 space-y-4 shadow-[0_0_20px_rgba(16,185,129,0.15)] animate-in fade-in slide-in-from-top-2">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40">
+                    <CheckCircle className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm sm:text-base font-bold text-emerald-300 font-orbitron uppercase tracking-wide">
+                      CAROUSEL DEPLOYED SUCCESSFULLY
+                    </h3>
+                    <p className="text-xs text-emerald-400/80 mt-0.5 font-mono">
+                      Instagram Business carousel payload verified and executed via{' '}
+                      <span className="font-bold text-emerald-200 uppercase">
+                        MAKE.COM
+                      </span>{' '}
+                      Scenario Webhook.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleClearAll}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 text-xs font-mono font-bold transition touch-manipulation"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>NEW_MISSION</span>
+                </button>
               </div>
-              <div>
-                <h3 className="text-sm sm:text-base font-bold text-emerald-300 font-orbitron uppercase tracking-wide">
-                  CAROUSEL DEPLOYED SUCCESSFULLY
-                </h3>
-                <p className="text-xs text-emerald-400/80 mt-0.5 font-mono">
-                  Instagram Business carousel payload verified and executed via Webhook.
-                </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 pt-2 border-t border-emerald-900/50 text-xs text-gray-300 font-mono">
+                <div>
+                  <span className="text-gray-500">JOB_ID:</span>{' '}
+                  <span className="text-emerald-400 font-bold">{publishResult.job_id}</span>
+                </div>
+                {publishResult.account_handle && (
+                  <div>
+                    <span className="text-gray-500">TARGET_PROFILE:</span>{' '}
+                    <span className="text-yellow-400 font-bold">{publishResult.account_handle}</span>
+                  </div>
+                )}
+                {publishResult.instagram_post_id && (
+                  <div>
+                    <span className="text-gray-500">INSTAGRAM_ID:</span>{' '}
+                    <span className="text-emerald-400 font-bold">{publishResult.instagram_post_id}</span>
+                  </div>
+                )}
+                {publishResult.published_at && (
+                  <div>
+                    <span className="text-gray-500">DEPLOYED_AT:</span>{' '}
+                    <span>{new Date(publishResult.published_at).toLocaleTimeString()}</span>
+                  </div>
+                )}
+                {publishResult.make_execution_id && (
+                  <div>
+                    <span className="text-gray-500">EXECUTION_ID:</span>{' '}
+                    <span className="text-gray-400">{publishResult.make_execution_id}</span>
+                  </div>
+                )}
               </div>
             </div>
-            <button
-              onClick={handleClearAll}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30 text-xs font-mono font-bold transition touch-manipulation"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              <span>NEW_MISSION</span>
-            </button>
-          </div>
+          )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 pt-2 border-t border-emerald-900/50 text-xs text-gray-300 font-mono">
-            <div>
-              <span className="text-gray-500">JOB_ID:</span>{' '}
-              <span className="text-emerald-400 font-bold">{publishResult.job_id}</span>
+          {/* Error Alert */}
+          {publishError && (
+            <div className="p-4 rounded bg-[#18090d] border border-rose-500/40 text-xs text-rose-300 flex items-start gap-3 font-mono shadow-[0_0_15px_rgba(244,63,94,0.15)]">
+              <AlertTriangle className="w-5 h-5 flex-shrink-0 text-rose-400 mt-0.5" />
+              <div className="space-y-1">
+                <strong className="block text-rose-200 font-orbitron uppercase">DEPLOYMENT PIPELINE FAILED</strong>
+                <p>{publishError}</p>
+              </div>
             </div>
-            {publishResult.account_handle && (
-              <div>
-                <span className="text-gray-500">TARGET_PROFILE:</span>{' '}
-                <span className="text-yellow-400 font-bold">{publishResult.account_handle}</span>
+          )}
+
+          {/* 1. Account Selector */}
+          <section>
+            <AccountSelector
+              accounts={accounts}
+              selectedAccountId={selectedAccountId}
+              onSelectAccount={setSelectedAccountId}
+              disabled={isPublishing}
+            />
+          </section>
+
+          {/* 2. Upload Zone */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 font-mono">
+                <span className="text-yellow-400 font-bold text-xs">// 02.</span>
+                <h2 className="text-xs sm:text-sm font-bold tracking-wider text-gray-200 uppercase font-orbitron">
+                  UPLOAD SOURCE MEDIA
+                </h2>
               </div>
-            )}
-            {publishResult.instagram_post_id && (
-              <div>
-                <span className="text-gray-500">INSTAGRAM_ID:</span>{' '}
-                <span className="text-emerald-400 font-bold">{publishResult.instagram_post_id}</span>
+              <span className="text-[11px] text-gray-400 font-mono hidden sm:inline">
+                [MIN: 2 &bull; MAX: 10 &bull; AUTO 9:16 CROP]
+              </span>
+            </div>
+
+            <ImageUploader
+              onImagesAdded={handleImagesAdded}
+              currentCount={images.length}
+              disabled={isPublishing}
+            />
+          </section>
+
+          {/* 3. Sequence & 9:16 Editor Grid */}
+          {images.length > 0 && (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 font-mono">
+                  <span className="text-yellow-400 font-bold text-xs">// 03.</span>
+                  <h2 className="text-xs sm:text-sm font-bold tracking-wider text-gray-200 uppercase font-orbitron">
+                    SLIDE SEQUENCE &amp; CROP EDITING
+                  </h2>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    disabled={isGeneratingLinks || isPublishing}
+                    onClick={handleGetPublicLinksOnly}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#131722] hover:bg-[#1a2030] text-yellow-400 border border-yellow-400/40 text-xs font-mono font-bold transition shadow-sm disabled:opacity-40"
+                    title="Upload images to Supabase/S3 and get permanent public URLs"
+                  >
+                    {isGeneratingLinks ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    ) : (
+                      <Link2 className="w-3.5 h-3.5 text-yellow-400" />
+                    )}
+                    <span>GET PUBLIC LINKS</span>
+                  </button>
+
+                  <button
+                    onClick={handleClearAll}
+                    disabled={isPublishing}
+                    className="text-xs font-mono text-gray-500 hover:text-rose-400 transition"
+                  >
+                    CLEAR ALL
+                  </button>
+                </div>
               </div>
-            )}
-            {publishResult.published_at && (
-              <div>
-                <span className="text-gray-500">DEPLOYED_AT:</span>{' '}
-                <span>{new Date(publishResult.published_at).toLocaleTimeString()}</span>
+
+              <ImageGrid
+                images={images}
+                onRemove={handleRemove}
+                onMove={handleMove}
+                onReorder={handleReorder}
+                onEdit={handleOpenEditor}
+                onClearAll={handleClearAll}
+              />
+            </section>
+          )}
+
+          {/* 4. Caption & Hashtags Editor */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 font-mono">
+                <span className="text-yellow-400 font-bold text-xs">// 04.</span>
+                <h2 className="text-xs sm:text-sm font-bold tracking-wider text-gray-200 uppercase font-orbitron">
+                  CAPTION &amp; METADATA
+                </h2>
               </div>
-            )}
-            {publishResult.make_execution_id && (
-              <div>
-                <span className="text-gray-500">MAKE_EXECUTION:</span>{' '}
-                <span className="text-gray-400">{publishResult.make_execution_id}</span>
+              <span className="text-[11px] text-gray-400 font-mono hidden sm:inline">
+                [MAX 2,200 CHARACTERS &bull; MAX 30 HASHTAGS]
+              </span>
+            </div>
+
+            <CaptionEditor
+              caption={caption}
+              hashtags={hashtags}
+              onCaptionChange={setCaption}
+              onHashtagsChange={setHashtags}
+              disabled={isPublishing}
+            />
+          </section>
+
+          {/* 5. Live Instagram Carousel Preview */}
+          <section className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 font-mono">
+                <span className="text-yellow-400 font-bold text-xs">// 05.</span>
+                <h2 className="text-xs sm:text-sm font-bold tracking-wider text-gray-200 uppercase font-orbitron">
+                  INSTAGRAM FEED PREVIEW
+                </h2>
               </div>
-            )}
-          </div>
-        </div>
-      )}
+              <span className="text-[11px] text-gray-400 font-mono hidden sm:inline">
+                [SIMULATED 9:16 FEED VIEW]
+              </span>
+            </div>
 
-      {/* Error Alert */}
-      {publishError && (
-        <div className="p-4 rounded bg-[#18090d] border border-rose-500/40 text-xs text-rose-300 flex items-start gap-3 font-mono shadow-[0_0_15px_rgba(244,63,94,0.15)]">
-          <AlertTriangle className="w-5 h-5 flex-shrink-0 text-rose-400 mt-0.5" />
-          <div className="space-y-1">
-            <strong className="block text-rose-200 font-orbitron uppercase">DEPLOYMENT PIPELINE FAILED</strong>
-            <p>{publishError}</p>
-          </div>
-        </div>
-      )}
+            <CarouselPreview
+              images={images}
+              caption={caption}
+              hashtags={hashtags}
+            />
+          </section>
 
-
-      {/* 1. Account Selector */}
-      <section>
-        <AccountSelector
-          accounts={accounts}
-          selectedAccountId={selectedAccountId}
-          onSelectAccount={setSelectedAccountId}
-          disabled={isPublishing}
-        />
-      </section>
-
-      {/* 2. Upload Zone */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 font-mono">
-            <span className="text-yellow-400 font-bold text-xs">// 02.</span>
-            <h2 className="text-xs sm:text-sm font-bold tracking-wider text-gray-200 uppercase font-orbitron">
-              UPLOAD PHOTOS &amp; VIDEOS
-            </h2>
-          </div>
-          <span className="text-[11px] text-gray-400 hidden sm:inline font-mono">
-            [LIMIT: 2 TO 10 SLIDES]
-          </span>
-        </div>
-        <ImageUploader
-          disabled={isPublishing}
-          currentCount={images.length}
-          onImagesAdded={handleImagesAdded}
-        />
-      </section>
-
-      {/* Reordering Grid */}
-      <ImageGrid
-        images={images}
-        onRemove={handleRemoveImage}
-        onMove={handleMoveImage}
-        onReorder={handleReorder}
-        onEdit={handleEditImage}
-        onClearAll={handleClearAll}
-      />
-
-      {/* 3. Caption & Hashtag Input */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2 font-mono">
-          <span className="text-yellow-400 font-bold text-xs">// 03.</span>
-          <h2 className="text-xs sm:text-sm font-bold tracking-wider text-gray-200 uppercase font-orbitron">
-            CAPTION &amp; METADATA
-          </h2>
-        </div>
-        <CaptionEditor
-          disabled={isPublishing}
-          caption={caption}
-          hashtags={hashtags}
-          onCaptionChange={setCaption}
-          onHashtagsChange={setHashtags}
-        />
-      </section>
-
-      {/* 4. Live Preview */}
-      <section className="space-y-3">
-        <div className="flex items-center gap-2 font-mono">
-          <span className="text-yellow-400 font-bold text-xs">// 04.</span>
-          <h2 className="text-xs sm:text-sm font-bold tracking-wider text-gray-200 uppercase font-orbitron">
-            CAROUSEL PREVIEW
-          </h2>
-        </div>
-        <CarouselPreview
-          images={images}
-          caption={caption}
-          hashtags={hashtags}
-        />
-      </section>
-
-      {/* 5. Publish & Public Links Action (Desktop & Tablet) */}
-      <section className="pt-2 space-y-3">
-        <div className="flex items-center gap-2 font-mono">
-          <span className="text-yellow-400 font-bold text-xs">// 05.</span>
-          <h2 className="text-xs sm:text-sm font-bold tracking-wider text-gray-200 uppercase font-orbitron">
-            POST ON INSTA
-          </h2>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="sm:col-span-2">
+          {/* 6. Tactical Action Trigger */}
+          <section className="pt-2">
             <PublishButton
               disabled={!canPublish}
               isLoading={isPublishing}
               stageText={stageText}
-              isSuccess={publishResult !== null}
-              isError={publishError !== null}
+              buttonLabel="PUBLISH CAROUSEL VIA MAKE.COM"
               onClick={handlePublish}
             />
-          </div>
 
-          <button
-            type="button"
-            disabled={images.length === 0 || isGeneratingLinks || isPublishing}
-            onClick={handleGetPublicLinksOnly}
-            className="py-4 px-4 rounded font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all font-orbitron uppercase tracking-wider border border-yellow-400/50 bg-[#0d0f15] hover:bg-yellow-400 hover:text-black text-yellow-400 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed touch-manipulation shadow-[0_0_15px_rgba(250,204,21,0.15)]"
-            title="Upload media to Supabase and get direct public URLs for manual posting"
-          >
-            {isGeneratingLinks ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span className="font-mono">EXPORTING...</span>
-              </>
-            ) : (
-              <>
-                <Link2 className="w-4 h-4" />
-                <span>GET PUBLIC LINKS ONLY</span>
-              </>
+            {!isCountValid && images.length > 0 && (
+              <p className="text-center text-xs font-mono text-yellow-400/80 mt-2">
+                ⚠ Requires between 2 and 10 slides to publish an Instagram carousel (Current: {images.length}).
+              </p>
             )}
-          </button>
-        </div>
 
-        {!canPublish && images.length > 0 && !isPublishing && (
-          <p className="text-center text-xs text-gray-500 font-mono">
-            {!isCountValid
-              ? `// SYSTEM STATUS: Instagram requires 2 to 10 slides (current: ${images.length}). "Get Public Links Only" is available for any count.`
-              : '// SYSTEM STATUS: Corrupt or unreadable slides must be removed before deployment.'}
-          </p>
-        )}
-      </section>
+            {hasInvalid && (
+              <p className="text-center text-xs font-mono text-rose-400/80 mt-2">
+                ⚠ One or more files are invalid or failed to load. Please inspect slides.
+              </p>
+            )}
+          </section>
 
-      {/* Sticky Mobile Bottom Bar for quick thumb access on phones */}
-      {images.length > 0 && (
-        <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-[#050608]/95 backdrop-blur-xl border-t border-[#1e2433] p-3 z-40 shadow-2xl flex items-center justify-between gap-2">
-          <div className="flex flex-col min-w-0 flex-1 font-mono">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-white truncate">
-              <span className={canPublish ? 'text-emerald-400' : 'text-yellow-400'}>
-                {images.length}/10 SLIDES
-              </span>
-              <span className="text-gray-500">&bull;</span>
-              <span className="text-[11px] text-yellow-400 truncate">
-                {accounts.find((a) => a.id === selectedAccountId)?.name || 'Account'}
-              </span>
+          {/* Sticky Mobile Bottom Bar */}
+          {images.length > 0 && (
+            <div className="sm:hidden fixed bottom-0 left-0 right-0 bg-[#050608]/95 backdrop-blur-xl border-t border-[#1e2433] p-3 z-40 shadow-2xl flex items-center justify-between gap-2">
+              <div className="flex flex-col min-w-0 flex-1 font-mono">
+                <div className="flex items-center gap-1.5 text-xs font-bold text-white truncate">
+                  <span className={canPublish ? 'text-emerald-400' : 'text-yellow-400'}>
+                    {images.length}/10 SLIDES
+                  </span>
+                  <span className="text-gray-500">&bull;</span>
+                  <span className="text-[11px] text-yellow-400 truncate">
+                    {accounts.find((a) => a.id === selectedAccountId)?.name || 'Account'}
+                  </span>
+                </div>
+                <span className="text-[10px] text-gray-400 truncate">
+                  {canPublish ? 'PIPELINE_READY' : isCountValid ? 'NODE_ERRORS' : 'REQUIRES 2-10 SLIDES'}
+                </span>
+              </div>
+
+              <div className="flex items-center gap-1.5 flex-shrink-0 font-mono">
+                <button
+                  type="button"
+                  disabled={images.length === 0 || isGeneratingLinks || isPublishing}
+                  onClick={handleGetPublicLinksOnly}
+                  className="px-3 py-2.5 rounded text-xs font-bold border border-yellow-400/50 bg-[#161a24] text-yellow-400 transition active:scale-95 disabled:opacity-40 touch-manipulation flex items-center gap-1"
+                  title="Get direct public URLs"
+                >
+                  {isGeneratingLinks ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
+                  <span>LINKS</span>
+                </button>
+
+                <button
+                  type="button"
+                  disabled={!canPublish || isPublishing}
+                  onClick={handlePublish}
+                  className={`px-4 py-2.5 rounded text-xs font-extrabold font-orbitron tracking-wider transition flex items-center gap-1.5 shadow-lg ${
+                    canPublish
+                      ? 'bg-yellow-400 text-black shadow-[0_0_15px_rgba(250,204,21,0.4)] active:scale-95'
+                      : 'bg-[#161a24] text-gray-600 border border-[#1e2433] cursor-not-allowed'
+                  }`}
+                >
+                  {isPublishing ? (
+                    <span>POSTING...</span>
+                  ) : (
+                    <span>POST INSTA</span>
+                  )}
+                </button>
+              </div>
             </div>
-            <span className="text-[10px] text-gray-400 truncate">
-              {canPublish ? 'PIPELINE_READY' : isCountValid ? 'NODE_ERRORS' : 'REQUIRES 2-10 SLIDES'}
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1.5 flex-shrink-0 font-mono">
-            <button
-              type="button"
-              disabled={images.length === 0 || isGeneratingLinks || isPublishing}
-              onClick={handleGetPublicLinksOnly}
-              className="px-3 py-2.5 rounded text-xs font-bold border border-yellow-400/50 bg-[#161a24] text-yellow-400 transition active:scale-95 disabled:opacity-40 touch-manipulation flex items-center gap-1"
-              title="Get direct public URLs"
-            >
-              {isGeneratingLinks ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5" />}
-              <span>LINKS</span>
-            </button>
-
-            <button
-              type="button"
-              disabled={!canPublish || isPublishing}
-              onClick={handlePublish}
-              className={`px-4 py-2.5 rounded text-xs font-extrabold font-orbitron tracking-wider transition flex items-center gap-1.5 shadow-lg ${
-                canPublish
-                  ? 'bg-yellow-400 text-black shadow-[0_0_15px_rgba(250,204,21,0.4)] active:scale-95'
-                  : 'bg-[#161a24] text-gray-600 border border-[#1e2433] cursor-not-allowed'
-              }`}
-            >
-              {isPublishing ? <span>POSTING...</span> : <span>POST ON INSTA</span>}
-            </button>
-          </div>
+          )}
         </div>
       )}
 

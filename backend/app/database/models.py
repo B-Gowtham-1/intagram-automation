@@ -69,3 +69,37 @@ class JobImage(Base):
     __table_args__ = (
         Index("idx_job_images_order", "job_id", "order_index"),
     )
+
+
+class FacebookAccount(Base):
+    __tablename__ = "facebook_accounts"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(64), unique=True, nullable=False, default="fb_user", index=True)
+    user_name = Column(String(128), nullable=False, default="Facebook User")
+    access_token = Column(Text, nullable=False)
+    app_id = Column(String(64), nullable=True)
+    is_active = Column(Integer, default=1)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+    updated_at = Column(DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False)
+
+    pages = relationship("ConnectedInstagramPage", back_populates="facebook_account", cascade="all, delete-orphan", order_by="ConnectedInstagramPage.id")
+
+
+class ConnectedInstagramPage(Base):
+    __tablename__ = "connected_instagram_pages"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    facebook_account_id = Column(Integer, ForeignKey("facebook_accounts.id", ondelete="CASCADE"), nullable=False, index=True)
+    page_id = Column(String(128), nullable=False)
+    page_name = Column(String(255), nullable=False)
+    page_access_token = Column(Text, nullable=True)
+    instagram_business_id = Column(String(128), nullable=False, index=True)
+    instagram_username = Column(String(128), nullable=False, index=True)
+    instagram_name = Column(String(255), nullable=True)
+    profile_picture_url = Column(String(1024), nullable=True)
+    is_selected = Column(Integer, default=0)
+    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
+
+    facebook_account = relationship("FacebookAccount", back_populates="pages")
+

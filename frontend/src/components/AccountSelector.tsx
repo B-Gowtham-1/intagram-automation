@@ -29,7 +29,7 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({
         </span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {accounts.map((acc, index) => {
           const isSelected = acc.id === selectedAccountId;
 

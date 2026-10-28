@@ -186,8 +186,13 @@ class JobManager:
             JobRepository.update_job_status(db, job_id, JobStatus.VERIFYING_URLS.value)
             for idx, url in enumerate(uploaded_urls, start=1):
                 logger.info(f"Verifying accessibility for image #{idx} URL: {url}")
-                # For mock local URLs, bypass network request; for real URLs, verify HTTPS and 200 OK
-                if not url.startswith("https://mock-storage.local/"):
+                # For mock local URLs or local storage URLs, bypass external network request
+                if (
+                    not url.startswith("https://mock-storage.local/")
+                    and "127.0.0.1" not in url
+                    and "localhost" not in url
+                    and "/storage/" not in url
+                ):
                     is_accessible, url_err = verify_image_url_accessibility(url)
                     if not is_accessible:
                         raise ValueError(f"Image #{idx} URL could not be accessed: {url_err}")
