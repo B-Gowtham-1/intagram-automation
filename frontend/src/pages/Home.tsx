@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AccountSelector } from '../components/AccountSelector';
 import { ImageUploader } from '../components/ImageUploader';
 import { ImageGrid } from '../components/ImageGrid';
@@ -75,57 +75,65 @@ export const Home: React.FC = () => {
       });
   }, []);
 
-  const handleImagesAdded = (newItems: ImageItem[]) => {
+  // ⚡ Bolt Optimization: Memoize handlers passed to ImageGrid and ImageCard
+  // Why: Prevents re-rendering all ImageCards in the grid on every keystroke in CaptionEditor or when unrelated state changes. ImageCard is already React.memo(), but it requires stable function props.
+  // Impact: Significantly reduces React render time and eliminates layout thrashing during text input or grid interactions.
+
+  const handleImagesAdded = useCallback((newItems: ImageItem[]) => {
     setPublishResult(null);
     setPublishError(null);
     setImages((prev) => {
       const combined = [...prev, ...newItems];
       return combined.map((item, idx) => ({ ...item, orderIndex: idx }));
     });
-  };
+  }, []);
 
-  const handleMove = (index: number, direction: 'up' | 'down') => {
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= images.length) return;
-    const newItems = [...images];
-    const [moved] = newItems.splice(index, 1);
-    newItems.splice(targetIndex, 0, moved);
-    setImages(newItems.map((item, idx) => ({ ...item, orderIndex: idx })));
-  };
+  const handleMove = useCallback((index: number, direction: 'up' | 'down') => {
+    setImages((prev) => {
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
+      const newItems = [...prev];
+      const [moved] = newItems.splice(index, 1);
+      newItems.splice(targetIndex, 0, moved);
+      return newItems.map((item, idx) => ({ ...item, orderIndex: idx }));
+    });
+  }, []);
 
-  const handleReorder = (startIndex: number, endIndex: number) => {
+  const handleReorder = useCallback((startIndex: number, endIndex: number) => {
     if (startIndex === endIndex) return;
-    const newItems = [...images];
-    const [removed] = newItems.splice(startIndex, 1);
-    newItems.splice(endIndex, 0, removed);
-    setImages(newItems.map((item, idx) => ({ ...item, orderIndex: idx })));
-  };
+    setImages((prev) => {
+      const newItems = [...prev];
+      const [removed] = newItems.splice(startIndex, 1);
+      newItems.splice(endIndex, 0, removed);
+      return newItems.map((item, idx) => ({ ...item, orderIndex: idx }));
+    });
+  }, []);
 
-  const handleRemove = (id: string) => {
+  const handleRemove = useCallback((id: string) => {
     setImages((prev) =>
       prev.filter((item) => item.id !== id).map((item, idx) => ({ ...item, orderIndex: idx }))
     );
-  };
+  }, []);
 
-  const handleClearAll = () => {
+  const handleClearAll = useCallback(() => {
     setImages([]);
     setCaption('');
     setHashtags('');
     setPublishResult(null);
     setPublishError(null);
     setStageText(null);
-  };
+  }, []);
 
-  const handleOpenEditor = (item: ImageItem) => {
+  const handleOpenEditor = useCallback((item: ImageItem) => {
     setEditingItem(item);
-  };
+  }, []);
 
-  const handleSaveEditedImage = (updatedItem: ImageItem) => {
+  const handleSaveEditedImage = useCallback((updatedItem: ImageItem) => {
     setImages((prev) =>
       prev.map((item) => (item.id === updatedItem.id ? updatedItem : item))
     );
     setEditingItem(null);
-  };
+  }, []);
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
