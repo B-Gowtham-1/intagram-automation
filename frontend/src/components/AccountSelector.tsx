@@ -9,7 +9,10 @@ interface AccountSelectorProps {
   disabled?: boolean;
 }
 
-export const AccountSelector: React.FC<AccountSelectorProps> = ({
+// ⚡ Bolt Optimization: Memoize AccountSelector to prevent unnecessary re-renders.
+// Why: When user types in CaptionEditor, Home.tsx state changes, causing all its children to re-render.
+// Impact: Prevents AccountSelector from re-rendering on every keystroke in CaptionEditor.
+export const AccountSelector: React.FC<AccountSelectorProps> = React.memo(({
   accounts,
   selectedAccountId,
   onSelectAccount,
@@ -94,4 +97,4 @@ export const AccountSelector: React.FC<AccountSelectorProps> = ({
       </div>
     </div>
   );
-};
+});

@@ -8,7 +8,10 @@ interface CaptionEditorProps {
   disabled?: boolean;
 }
 
-export const CaptionEditor: React.FC<CaptionEditorProps> = ({
+// ⚡ Bolt Optimization: Memoize CaptionEditor to prevent unnecessary re-renders.
+// Why: When user drags an image in ImageGrid, Home.tsx state changes, causing all its children to re-render.
+// Impact: Prevents CaptionEditor from re-rendering during drag and drop operations in the grid.
+export const CaptionEditor: React.FC<CaptionEditorProps> = React.memo(({
   caption,
   hashtags,
   onCaptionChange,
@@ -49,4 +52,4 @@ export const CaptionEditor: React.FC<CaptionEditorProps> = ({
       </div>
     </div>
   );
-};
+});
