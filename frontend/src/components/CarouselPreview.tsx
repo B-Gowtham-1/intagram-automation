@@ -7,7 +7,10 @@ interface CarouselPreviewProps {
   hashtags: string;
 }
 
-export const CarouselPreview: React.FC<CarouselPreviewProps> = ({
+// ⚡ Bolt Optimization: Memoize CarouselPreview to prevent unnecessary re-renders.
+// Why: Image grid re-ordering causes Home.tsx to re-render, and the preview shouldn't recalculate unless images or caption actually change reference.
+// Impact: Prevents CarouselPreview from re-rendering on unrelated Home.tsx state changes (like selecting a different account).
+export const CarouselPreview: React.FC<CarouselPreviewProps> = React.memo(({
   images,
   caption,
   hashtags,
@@ -63,4 +66,4 @@ export const CarouselPreview: React.FC<CarouselPreviewProps> = ({
       )}
     </div>
   );
-};
+});
