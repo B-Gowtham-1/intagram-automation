@@ -12,7 +12,10 @@ interface ImageGridProps {
   onClearAll?: () => void;
 }
 
-export const ImageGrid: React.FC<ImageGridProps> = ({
+// ⚡ Bolt Optimization: Wrap ImageGrid with React.memo
+// Why: Prevents re-rendering the entire grid structure when Home.tsx state changes (like typing in the caption editor).
+// Impact: Used in conjunction with stable function references from Home.tsx, completely isolates the image grid from unrelated updates.
+export const ImageGrid: React.FC<ImageGridProps> = React.memo(({
   images,
   onRemove,
   onMove,
@@ -123,4 +126,4 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
       </div>
     </div>
   );
-};
+});

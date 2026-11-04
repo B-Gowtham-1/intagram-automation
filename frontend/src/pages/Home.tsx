@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AccountSelector } from '../components/AccountSelector';
 import { ImageUploader } from '../components/ImageUploader';
 import { ImageGrid } from '../components/ImageGrid';
@@ -84,41 +84,49 @@ export const Home: React.FC = () => {
     });
   };
 
-  const handleMove = (index: number, direction: 'up' | 'down') => {
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= images.length) return;
-    const newItems = [...images];
-    const [moved] = newItems.splice(index, 1);
-    newItems.splice(targetIndex, 0, moved);
-    setImages(newItems.map((item, idx) => ({ ...item, orderIndex: idx })));
-  };
+  // ⚡ Bolt Optimization: Wrap handlers with useCallback and use functional state updates
+  // Why: Prevents recreating these functions on every keystroke in CaptionEditor, which
+  // otherwise breaks React.memo in ImageCard and causes full grid re-renders.
+  // Impact: Eliminates O(N) DOM node updates per keystroke. Smooth typing performance.
+  const handleMove = useCallback((index: number, direction: 'up' | 'down') => {
+    setImages((prevImages) => {
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= prevImages.length) return prevImages;
+      const newItems = [...prevImages];
+      const [moved] = newItems.splice(index, 1);
+      newItems.splice(targetIndex, 0, moved);
+      return newItems.map((item, idx) => ({ ...item, orderIndex: idx }));
+    });
+  }, []);
 
-  const handleReorder = (startIndex: number, endIndex: number) => {
+  const handleReorder = useCallback((startIndex: number, endIndex: number) => {
     if (startIndex === endIndex) return;
-    const newItems = [...images];
-    const [removed] = newItems.splice(startIndex, 1);
-    newItems.splice(endIndex, 0, removed);
-    setImages(newItems.map((item, idx) => ({ ...item, orderIndex: idx })));
-  };
+    setImages((prevImages) => {
+      const newItems = [...prevImages];
+      const [removed] = newItems.splice(startIndex, 1);
+      newItems.splice(endIndex, 0, removed);
+      return newItems.map((item, idx) => ({ ...item, orderIndex: idx }));
+    });
+  }, []);
 
-  const handleRemove = (id: string) => {
+  const handleRemove = useCallback((id: string) => {
     setImages((prev) =>
       prev.filter((item) => item.id !== id).map((item, idx) => ({ ...item, orderIndex: idx }))
     );
-  };
+  }, []);
 
-  const handleClearAll = () => {
+  const handleClearAll = useCallback(() => {
     setImages([]);
     setCaption('');
     setHashtags('');
     setPublishResult(null);
     setPublishError(null);
     setStageText(null);
-  };
+  }, []);
 
-  const handleOpenEditor = (item: ImageItem) => {
+  const handleOpenEditor = useCallback((item: ImageItem) => {
     setEditingItem(item);
-  };
+  }, []);
 
   const handleSaveEditedImage = (updatedItem: ImageItem) => {
     setImages((prev) =>
