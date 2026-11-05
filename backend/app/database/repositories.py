@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import Optional, List
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from backend.app.database.models import Job, JobImage
 
 
@@ -121,4 +121,6 @@ class JobRepository:
 
     @staticmethod
     def list_jobs(db: Session, limit: int = 50) -> List[Job]:
-        return db.query(Job).order_by(Job.created_at.desc()).limit(limit).all()
+        # ⚡ Bolt: Use selectinload to eagerly fetch related images, preventing N+1 queries
+        # when accessing job.images in API responses.
+        return db.query(Job).options(selectinload(Job.images)).order_by(Job.created_at.desc()).limit(limit).all()
