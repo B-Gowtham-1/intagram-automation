@@ -3,3 +3,8 @@
 **Learning:** When moving state to `useRef` to optimize React rendering performance during drag-and-drop operations, and subsequently wrapping the event handlers in `React.useCallback`, it's critical to place the hook declarations *before* any early return statements (like `if (images.length === 0) return null;`). Failing to do so breaks the Rules of Hooks. Also, `URL.revokeObjectURL` should not be executed inside a React state updater function since state updaters must be pure.
 
 **Action:** Always verify the placement of hook declarations when refactoring components to add optimizations, ensuring they are at the top level and run unconditionally. Always extract side-effects from state updaters to `useCallback` or `useEffect`.
+
+## $(date +%Y-%m-%d) - React.memo Broken by Unmemoized Callbacks
+
+**Learning:** When passing callback functions to child components wrapped in `React.memo`, if those callbacks are not memoized using `useCallback` in the parent, the child component will re-render unnecessarily on every parent render.
+**Action:** Always wrap callback functions passed to memoized child components in `useCallback`.

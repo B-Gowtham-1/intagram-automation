@@ -75,57 +75,61 @@ export const Home: React.FC = () => {
       });
   }, []);
 
-  const handleImagesAdded = (newItems: ImageItem[]) => {
+  const handleImagesAdded = React.useCallback((newItems: ImageItem[]) => {
     setPublishResult(null);
     setPublishError(null);
     setImages((prev) => {
       const combined = [...prev, ...newItems];
       return combined.map((item, idx) => ({ ...item, orderIndex: idx }));
     });
-  };
+  }, []);
 
-  const handleMove = (index: number, direction: 'up' | 'down') => {
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= images.length) return;
-    const newItems = [...images];
-    const [moved] = newItems.splice(index, 1);
-    newItems.splice(targetIndex, 0, moved);
-    setImages(newItems.map((item, idx) => ({ ...item, orderIndex: idx })));
-  };
+  const handleMove = React.useCallback((index: number, direction: 'up' | 'down') => {
+    setImages(prev => {
+      const targetIndex = direction === 'up' ? index - 1 : index + 1;
+      if (targetIndex < 0 || targetIndex >= prev.length) return prev;
+      const newItems = [...prev];
+      const [moved] = newItems.splice(index, 1);
+      newItems.splice(targetIndex, 0, moved);
+      return newItems.map((item, idx) => ({ ...item, orderIndex: idx }));
+    });
+  }, []);
 
-  const handleReorder = (startIndex: number, endIndex: number) => {
+  const handleReorder = React.useCallback((startIndex: number, endIndex: number) => {
     if (startIndex === endIndex) return;
-    const newItems = [...images];
-    const [removed] = newItems.splice(startIndex, 1);
-    newItems.splice(endIndex, 0, removed);
-    setImages(newItems.map((item, idx) => ({ ...item, orderIndex: idx })));
-  };
+    setImages(prev => {
+        const newItems = [...prev];
+        const [removed] = newItems.splice(startIndex, 1);
+        newItems.splice(endIndex, 0, removed);
+        return newItems.map((item, idx) => ({ ...item, orderIndex: idx }));
+    });
+  }, []);
 
-  const handleRemove = (id: string) => {
+  const handleRemove = React.useCallback((id: string) => {
     setImages((prev) =>
       prev.filter((item) => item.id !== id).map((item, idx) => ({ ...item, orderIndex: idx }))
     );
-  };
+  }, []);
 
-  const handleClearAll = () => {
+  const handleClearAll = React.useCallback(() => {
     setImages([]);
     setCaption('');
     setHashtags('');
     setPublishResult(null);
     setPublishError(null);
     setStageText(null);
-  };
+  }, []);
 
-  const handleOpenEditor = (item: ImageItem) => {
+  const handleOpenEditor = React.useCallback((item: ImageItem) => {
     setEditingItem(item);
-  };
+  }, []);
 
-  const handleSaveEditedImage = (updatedItem: ImageItem) => {
+  const handleSaveEditedImage = React.useCallback((updatedItem: ImageItem) => {
     setImages((prev) =>
       prev.map((item) => (item.id === updatedItem.id ? updatedItem : item))
     );
     setEditingItem(null);
-  };
+  }, []);
 
   const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
