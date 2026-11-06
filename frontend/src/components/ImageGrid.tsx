@@ -12,7 +12,10 @@ interface ImageGridProps {
   onClearAll?: () => void;
 }
 
-export const ImageGrid: React.FC<ImageGridProps> = ({
+// ⚡ Bolt Optimization: Wrap ImageGrid in React.memo
+// Why: ImageGrid receives images and handler callbacks from Home. Typing in CaptionEditor would re-render Home and thus ImageGrid, forcing re-evaluation of all child cards even if we memoized them.
+// Impact: ImageGrid completely skips rendering when typing captions, massively improving editor latency.
+export const ImageGrid: React.FC<ImageGridProps> = React.memo(({
   images,
   onRemove,
   onMove,
@@ -123,4 +126,4 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
       </div>
     </div>
   );
-};
+});
