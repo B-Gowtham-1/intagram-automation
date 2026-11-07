@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 from typing import Optional, List
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from backend.app.database.models import Job, JobImage
 
 
@@ -121,4 +121,7 @@ class JobRepository:
 
     @staticmethod
     def list_jobs(db: Session, limit: int = 50) -> List[Job]:
-        return db.query(Job).order_by(Job.created_at.desc()).limit(limit).all()
+        # ⚡ Bolt Optimization: Use joinedload to eagerly load related images.
+        # Why: Resolves an N+1 query issue where fetching N jobs resulted in N+1 queries to fetch images for each job.
+        # Impact: Reduces database queries from O(N) to O(1) when listing jobs, significantly improving page load performance.
+        return db.query(Job).options(joinedload(Job.images)).order_by(Job.created_at.desc()).limit(limit).all()
