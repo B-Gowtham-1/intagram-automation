@@ -12,7 +12,10 @@ interface ImageGridProps {
   onClearAll?: () => void;
 }
 
-export const ImageGrid: React.FC<ImageGridProps> = ({
+// ⚡ Bolt Optimization: Memoize ImageGrid to prevent re-renders when parent state (like caption/hashtags) changes
+// Why: ImageGrid is a complex component. Typing in the caption editor used to trigger re-renders of the entire grid.
+// Impact: Prevents re-rendering of all ImageCard instances during caption typing, saving significant render time.
+export const ImageGrid: React.FC<ImageGridProps> = React.memo(({
   images,
   onRemove,
   onMove,
@@ -123,4 +126,4 @@ export const ImageGrid: React.FC<ImageGridProps> = ({
       </div>
     </div>
   );
-};
+});
